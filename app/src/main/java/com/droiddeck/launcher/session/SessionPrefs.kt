@@ -1053,11 +1053,11 @@ object SessionPrefs {
     fun battleNetFolder(context: Context, code: String): String? = prefs(context).getString("battleNetFolder:$code", null)
     fun setBattleNetFolder(context: Context, code: String, path: String) { prefs(context).edit().putString("battleNetFolder:$code", path).apply() }
 
-    fun clearCachedApps(context: Context): Boolean = prefs(context).getBoolean("clearCachedApps", false)
+    fun clearCachedApps(context: Context): Boolean = prefs(context).getBoolean("clearCachedApps", true)
     fun setClearCachedApps(context: Context, on: Boolean) { prefs(context).edit().putBoolean("clearCachedApps", on).apply() }
 
     fun backgroundAppLimit(context: Context): Int =
-        prefs(context).getInt("backgroundAppLimit", com.droiddeck.launcher.core.BackgroundAppLimit.OFF)
+        prefs(context).getInt("backgroundAppLimit", 1)
             .takeIf { it in com.droiddeck.launcher.core.BackgroundAppLimit.CHOICES } ?: com.droiddeck.launcher.core.BackgroundAppLimit.OFF
     fun setBackgroundAppLimit(context: Context, limit: Int) {
         require(limit in com.droiddeck.launcher.core.BackgroundAppLimit.CHOICES)

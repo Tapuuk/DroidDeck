@@ -967,8 +967,10 @@ class SessionService : Service() {
         if (SessionPrefs.noGlError(this)) guest.add("MESA_NO_ERROR=1")
         guest.add("MESA_DISK_CACHE_DATABASE=1")
         guest.addAll(GpuStatsComponent.guestEnv(LinuxRuntime.rootDir(this)))
-        guest.add("GLIBC_TUNABLES=glibc.pthread.rseq=0:glibc.malloc.top_pad=16777216")
-        if (SessionState.mode == MODE_STEAM) guest.add("BL_MANGOAPP=" + (if (SessionPrefs.mangoapp(this)) "1" else "0"))
+        val bigTopPad = File(LinuxRuntime.rootDir(this), "root/.fh4-big-top-pad").isFile
+        Log.i(TAG, "fh4 test: malloc top_pad ${if (bigTopPad) "16 MiB (original)" else "1 MiB"}")
+        guest.add("GLIBC_TUNABLES=glibc.pthread.rseq=0:glibc.malloc.top_pad=" + (if (bigTopPad) "16777216" else "1048576"))
+        if (SessionState.mode == MODE_STEAM) guest.add("BL_MANGOAPP=0")
         SessionState.steamClientArch = if (steamHere) SessionPrefs.steamClientArch(this) else null
         SessionState.steamClientArch?.let { arch ->
             guest.add("BL_STEAM_CLIENT_ARCH=$arch")
@@ -990,11 +992,12 @@ class SessionService : Service() {
         if (SessionPrefs.cursorComposite(this)) guest.add("BL_CURSOR_COMPOSITE=1")
         relativeMouseForSession().takeIf { it != 0 }?.let { guest.add("gamescope_relative_mouse=$it") }
         if (com.droiddeck.launcher.core.ZramSupport.supported()) {
-            guest.add("BL_ZRAM=1")
+            guest.add("BL_ZRAM=0")
             if (steamHere) SessionPrefs.ramCapMb(this).takeIf { it > 0 }?.let { guest.add("BL_RAM_CAP_MB=$it") }
             if (!SessionPrefs.zramClient(this)) guest.add("BL_ZRAM_CLIENT=0")
         }
-        SessionPrefs.vramCapMb(this).takeIf { it > 0 }?.let { guest.add("BL_VRAM_MB=$it") }
+        guest.add("BL_VRAM_MB=" + (SessionPrefs.vramCapMb(this).takeIf { it > 0 } ?: 4096))
+        guest.add("DXVK_CONFIG=dxgi.maxSharedMemory = " + (SessionPrefs.vramCapMb(this).takeIf { it > 0 } ?: 4096))
         guest.add("AUDIO_DIRECT_DECAY=0")
         val extra = extraEnv() + agentEnvironment
         mapOf("TU_DEBUG" to (tuOverride ?: if (tuDriver) "sysmem" else ""), "MESA_NO_ERROR" to "").forEach { (name, game) ->
