@@ -135,6 +135,21 @@ class InputSurfaceViewTest {
         } finally { root.removeAllViews(); bridge.stop(); controller.pause().stop().destroy() }
     }
 
+    @Test fun movingOrFadingAControlKeepsItsViewAndRenamingRebuildsIt() {
+        val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup().get()
+        val one = InputSurfaceElement(InputControl.A, .2f, .2f, .2f, .2f, "one")
+        val panel = InputSurfaceView(activity, customLayout = listOf(one))
+        fun control() = generateSequence(listOf<View>(panel)) { level -> level.flatMap { v -> (v as? android.view.ViewGroup)?.let { g -> (0 until g.childCount).map(g::getChildAt) }.orEmpty() }.takeIf { it.isNotEmpty() } }
+            .flatten().first { (it.tag as? InputSurfaceElement)?.id == "one" }
+        val view = control()
+        panel.updateCustomLayout(listOf(one.copy(x = .4f, width = .3f, opacity = .5f)))
+        assertTrue(view === control())
+        assertEquals(.5f, view.alpha, .001f)
+        assertEquals(.4f, (view.tag as InputSurfaceElement).x, 0f)
+        panel.updateCustomLayout(listOf(one.copy(name = "Jump")))
+        assertTrue(view !== control())
+    }
+
     @Test fun keyedDirectionsAreLabelledWithTheirKeysAndOtherActionsAreNot() {
         val context = RuntimeEnvironment.getApplication()
         val wasd = InputAction.Directions(17, 32, 31, 30, listOf(18, 0, 0, 16))

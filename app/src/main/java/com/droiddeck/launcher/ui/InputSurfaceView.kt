@@ -154,13 +154,24 @@ class InputSurfaceView(
     fun updateCustomLayout(requested: List<InputSurfaceElement>) {
         requestedLayout = requested
         val layout = surfaceStyle.shown(requested)
-        val sameElements = customLayout.map { it.copy(x = 0f, y = 0f, width = 1f, height = 1f) } == layout.map { it.copy(x = 0f, y = 0f, width = 1f, height = 1f) }
+        if (layout == customLayout) return
+        val previous = customLayout
         customLayout = layout
-        if (sameElements) customCanvas?.requestLayout() else {
+        val canvas = customCanvas
+        if (canvas == null || previous.map(::unplaced) != layout.map(::unplaced)) {
             elementSources.forEach { it.close() }; elementSources.clear()
             owners.clear(); content.removeAllViews(); renderCustom(pad)
+            return
         }
+        for (i in layout.indices) {
+            val child = canvas.getChildAt(i)
+            child.tag = layout[i]
+            if (layout[i].opacity != previous[i].opacity) styleElement(child)
+        }
+        canvas.requestLayout()
     }
+
+    private fun unplaced(e: InputSurfaceElement) = e.copy(x = 0f, y = 0f, width = 1f, height = 1f, opacity = 1f)
 
     fun releaseInputs() {
         val now = android.os.SystemClock.uptimeMillis()
