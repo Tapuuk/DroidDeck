@@ -8,6 +8,7 @@ import kotlin.math.roundToInt
 
 private const val TOOL_STEPS = 12
 private const val PILL_STEPS = 8
+private const val PILL_GRID = 24
 
 /** [elements], [selection] and [preferred] are fractions of the canvas; the result is the panel's top-left corner in pixels. */
 internal fun placeSurfaceTools(width: Float, height: Float, panelWidth: Float, panelHeight: Float, margin: Float,
@@ -50,7 +51,7 @@ internal fun freeSurfaceSpot(elements: List<SurfaceBounds>, width: Float, height
 
 /**
  * Top-left, in pixels, for the size and opacity pill. It tries the spots beside, below and above [selection], each centred and slid
- * along that side, and takes one at least [gap] off the selection that covers the least of [avoid] (controls, menu, cards), then the nearest, the
+ * along that side, then a grid over the screen, and takes one at least [gap] off the selection that covers the least of [avoid] (controls, menu, cards), then the nearest, the
  * least slid and the one on the roomier side. All bounds are pixels.
  */
 internal fun placeSelectionPill(width: Float, height: Float, pillWidth: Float, pillHeight: Float, margin: Float, gap: Float,
@@ -67,8 +68,10 @@ internal fun placeSelectionPill(width: Float, height: Float, pillWidth: Float, p
     val rows = if (height - selection.bottom >= selection.top) listOf(below, above) else listOf(above, below)
     val ys = (0..PILL_STEPS).map { selection.top - pillHeight + (selection.height + pillHeight) * it / PILL_STEPS }
     val xs = (0..PILL_STEPS).map { selection.left - pillWidth + (selection.width + pillWidth) * it / PILL_STEPS }
+    val gridX = (0..PILL_GRID).map { margin + ((width - pillWidth - margin).coerceAtLeast(margin) - margin) * it / PILL_GRID }
+    val gridY = (0..PILL_GRID).map { margin + ((height - pillHeight - margin).coerceAtLeast(margin) - margin) * it / PILL_GRID }
     val candidates = sides.map { clamp(it, selection.centerY - pillHeight / 2) } + rows.map { clamp(selection.centerX - pillWidth / 2, it) } +
-        sides.flatMap { x -> ys.map { clamp(x, it) } } + rows.flatMap { y -> xs.map { clamp(it, y) } }
+        sides.flatMap { x -> ys.map { clamp(x, it) } } + rows.flatMap { y -> xs.map { clamp(it, y) } } + gridX.flatMap { x -> gridY.map { x to it } }
     fun distance(x: Float, y: Float) = hypot(max(0f, max(selection.left - x - pillWidth, x - selection.right)),
         max(0f, max(selection.top - y - pillHeight, y - selection.bottom))).roundToInt()
     fun slide(x: Float, y: Float) = if (x + pillWidth <= selection.left || x >= selection.right) abs(y + pillHeight / 2 - selection.centerY)

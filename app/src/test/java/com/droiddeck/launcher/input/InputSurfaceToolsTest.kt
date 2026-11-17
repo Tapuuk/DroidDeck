@@ -89,13 +89,15 @@ class InputSurfaceToolsTest {
     @Test fun theSelectionPillCoversNoControlOfTheDefaultGamepad() {
         val pad = LegacyGamepadLayout(context, w.toInt(), h.toInt()).elements()
         val reach = 24 * density
-        val stick = bounds(pad.first { it.id == "legacy:ls" })
-        val selection = SurfaceBounds(stick.left * w - reach, stick.top * h - reach, stick.right * w + reach, stick.bottom * h + reach)
-        val others = pad.filter { it.id != "legacy:ls" }.map(::bounds)
-        val pw = 240 * density; val ph = 88 * density
-        val at = placeSelectionPill(w, h, pw, ph, margin, 4 * density, selection,
-            others.map { SurfaceBounds(it.left * w, it.top * h, it.right * w, it.bottom * h) })
-        assertFalse(covers(at, pw, ph, SurfaceBounds(selection.left / w, selection.top / h, selection.right / w, selection.bottom / h)))
-        for (other in others) assertFalse(other.toString(), covers(at, pw, ph, other))
+        for (id in listOf("legacy:ls", "legacy:a")) {
+            val selected = bounds(pad.first { it.id == id })
+            val selection = SurfaceBounds(selected.left * w - reach, selected.top * h - reach, selected.right * w + reach, selected.bottom * h + reach)
+            val others = pad.filter { it.id != id }.map(::bounds)
+            val pw = 240 * density; val ph = 88 * density
+            val at = placeSelectionPill(w, h, pw, ph, margin, 4 * density, selection,
+                others.map { SurfaceBounds(it.left * w, it.top * h, it.right * w, it.bottom * h) })
+            assertFalse(id, covers(at, pw, ph, SurfaceBounds(selection.left / w, selection.top / h, selection.right / w, selection.bottom / h)))
+            for (other in others) assertFalse("$id $other", covers(at, pw, ph, other))
+        }
     }
 }
