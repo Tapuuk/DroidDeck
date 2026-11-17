@@ -112,7 +112,7 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
     var toolsAt by mutableStateOf<Pair<Float, Float>?>(null)
     var sizeOpen by mutableStateOf(false)
     /** Controls the last add() placed or restored, for the canvas pop-in. */
-    var placed by mutableStateOf<List<String>>(emptyList())
+    var placed by mutableStateOf<List<String>>(emptyList(), neverEqualPolicy())
         private set
     var snap by mutableStateOf(snap)
     var adding by mutableStateOf(false)
@@ -387,11 +387,14 @@ private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
 
 @Composable
 private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false, onDelete: () -> Unit) {
+    val popped = remember { arrayOf(draft.placed) }
     AndroidView(factory = { InputSurfaceEditorView(it) }, modifier = Modifier.fillMaxSize().testTag("input-layout-canvas"),
         update = { view ->
             view.setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else android.graphics.Color.rgb(10, 11, 13))
             view.style = draft.layout.style.copy(removed = emptySet()); view.elements = draft.visible; view.selection = draft.selection; view.snap = draft.snap
             view.isEnabled = !draft.adding
+            view.sizeReadout = { draft.selectionSize }
+            if (draft.placed !== popped[0]) { popped[0] = draft.placed; view.popIn(draft.placed) }
             view.onSelect = { draft.select(it) }
             view.onBeginEdit = draft::checkpoint
             view.onDelete = onDelete
@@ -399,7 +402,6 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false, onD
                 val byId = changed.associateBy { it.id }
                 draft.elements = draft.elements.map { byId[it.id] ?: it }
             }
-
         })
 }
 
