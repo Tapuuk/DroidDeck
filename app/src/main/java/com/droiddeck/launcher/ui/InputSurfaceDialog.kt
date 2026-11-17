@@ -507,8 +507,10 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, toasts: EditorToasts, onSa
             var pillHeight by remember { mutableIntStateOf(0) }
             var sliding by remember { mutableStateOf(false) }
             val sel = SurfaceBounds(selected.left * screenWidth, selected.top * screenHeight, selected.right * screenWidth, selected.bottom * screenHeight)
-            val placed = placeSelectionPill(screenWidth, screenHeight, pillWidth, pillHeight.toFloat().takeIf { it > 0f } ?: with(density) { 96.dp.toPx() },
-                margin, with(density) { 12.dp.toPx() }, sel, listOfNotNull(menu, card))
+            val others = draft.visible.filter { it.id !in draft.selection }
+                .map { SurfaceBounds(it.x * screenWidth, it.y * screenHeight, (it.x + it.width) * screenWidth, (it.y + it.height) * screenHeight) }
+            val placed = placeSelectionPill(screenWidth, screenHeight, pillWidth, pillHeight.toFloat().takeIf { it > 0f } ?: with(density) { 88.dp.toPx() },
+                margin, with(density) { 4.dp.toPx() }, sel, listOfNotNull(menu, card) + others)
             val held = remember { arrayOf(placed) }
             if (!sliding) held[0] = placed
             val (px, py) = held[0]

@@ -1,10 +1,13 @@
 package com.droiddeck.launcher.input
 
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private const val TOOL_STEPS = 12
+private const val PILL_STEPS = 8
 
 /** [elements], [selection] and [preferred] are fractions of the canvas; the result is the panel's top-left corner in pixels. */
 internal fun placeSurfaceTools(width: Float, height: Float, panelWidth: Float, panelHeight: Float, margin: Float,
@@ -46,8 +49,9 @@ internal fun freeSurfaceSpot(elements: List<SurfaceBounds>, width: Float, height
 }
 
 /**
- * Top-left, in pixels, for the size and opacity pill: beside [selection] on the side with more room, else below or above, avoiding
- * [selection] and [avoid] (both pixels). Falls back to the spot covering the selection least.
+ * Top-left, in pixels, for the size and opacity pill. It tries the spots beside, below and above [selection], each centred and slid
+ * along that side, and takes one at least [gap] off the selection that covers the least of [avoid] (controls, menu, cards), then the nearest, the
+ * least slid and the one on the roomier side. All bounds are pixels.
  */
 internal fun placeSelectionPill(width: Float, height: Float, pillWidth: Float, pillHeight: Float, margin: Float, gap: Float,
     selection: SurfaceBounds, avoid: List<SurfaceBounds>): Pair<Float, Float> {
@@ -55,13 +59,22 @@ internal fun placeSelectionPill(width: Float, height: Float, pillWidth: Float, p
         y.coerceIn(margin, (height - pillHeight - margin).coerceAtLeast(margin))
     fun covered(b: SurfaceBounds, at: Pair<Float, Float>) =
         max(0f, min(at.first + pillWidth, b.right) - max(at.first, b.left)) * max(0f, min(at.second + pillHeight, b.bottom) - max(at.second, b.top))
-    val right = clamp(selection.right + gap, selection.centerY - pillHeight / 2)
-    val left = clamp(selection.left - gap - pillWidth, selection.centerY - pillHeight / 2)
-    val below = clamp(selection.centerX - pillWidth / 2, selection.bottom + gap)
-    val above = clamp(selection.centerX - pillWidth / 2, selection.top - gap - pillHeight)
+    val right = selection.right + gap
+    val left = selection.left - gap - pillWidth
+    val below = selection.bottom + gap
+    val above = selection.top - gap - pillHeight
     val sides = if (width - selection.right >= selection.left) listOf(right, left) else listOf(left, right)
-    val vertical = if (height - selection.bottom >= selection.top) listOf(below, above) else listOf(above, below)
-    val candidates = sides + vertical
-    return candidates.firstOrNull { at -> covered(selection, at) == 0f && avoid.all { covered(it, at) == 0f } }
-        ?: candidates.minBy { covered(selection, it) }
+    val rows = if (height - selection.bottom >= selection.top) listOf(below, above) else listOf(above, below)
+    val ys = (0..PILL_STEPS).map { selection.top - pillHeight + (selection.height + pillHeight) * it / PILL_STEPS }
+    val xs = (0..PILL_STEPS).map { selection.left - pillWidth + (selection.width + pillWidth) * it / PILL_STEPS }
+    val candidates = sides.map { clamp(it, selection.centerY - pillHeight / 2) } + rows.map { clamp(selection.centerX - pillWidth / 2, it) } +
+        sides.flatMap { x -> ys.map { clamp(x, it) } } + rows.flatMap { y -> xs.map { clamp(it, y) } }
+    fun distance(x: Float, y: Float) = hypot(max(0f, max(selection.left - x - pillWidth, x - selection.right)),
+        max(0f, max(selection.top - y - pillHeight, y - selection.bottom))).roundToInt()
+    fun slide(x: Float, y: Float) = if (x + pillWidth <= selection.left || x >= selection.right) abs(y + pillHeight / 2 - selection.centerY)
+        else abs(x + pillWidth / 2 - selection.centerX)
+    val clear = (gap - .5f).coerceAtLeast(0f)
+    val keepOff = SurfaceBounds(selection.left - clear, selection.top - clear, selection.right + clear, selection.bottom + clear)
+    return candidates.minWith(compareBy<Pair<Float, Float>>({ covered(keepOff, it) }, { at -> avoid.sumOf { covered(it, at).toDouble() } },
+        { (x, y) -> distance(x, y) }, { (x, y) -> slide(x, y).roundToInt() }))
 }
