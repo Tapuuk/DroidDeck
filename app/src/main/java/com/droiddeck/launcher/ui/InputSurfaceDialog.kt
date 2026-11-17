@@ -159,11 +159,10 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
         val pill = choice.kind == InputElementKind.TRIGGER || choice.control == InputControl.LB || choice.control == InputControl.RB
         val width = (height / aspect * if (pill) 2f else 1f).coerceIn(.03f, 1f)
         val (x, y) = freeSurfaceSpot(visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) }, width, height)
-        val element = InputSurfaceElement(choice.control, x, y, width, height, newInputId(), choice.kind, choice.name,
-            mouseGestures = choice.mouseGestures, buttonShape = if (pill) InputButtonShape.PILL else InputButtonShape.CIRCLE)
+        val element = InputSurfaceElement(choice.kind.control, x, y, width, height, newInputId(), choice.kind, choice.name,
+            icon = choice.icon, buttonShape = if (pill) InputButtonShape.PILL else InputButtonShape.CIRCLE)
         elements = elements + element
         actions = actions + (element.id to choice.action)
-        choice.click?.let { clicks = clicks + (element.id to it) }
         select(listOf(element.id))
     }
     fun scaleAll(percent: Int) {
@@ -321,24 +320,13 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
 @Composable
 private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
     val context = LocalContext.current
-    var category by remember { mutableStateOf<InputAddCategory?>(null) }
-    var search by remember { mutableStateOf("") }
+    val trackpads = draft.layout.supports(InputRole.SECONDARY) || draft.elements.any { it.kind == InputElementKind.TRACKPAD }
     AlertDialog(onDismissRequest = { draft.adding = false }, title = { Text(stringResource(R.string.input_add_element)) },
         confirmButton = {}, dismissButton = { PadTextButton(onClick = { draft.adding = false }) { Text(stringResource(R.string.common_close)) } },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.input_add_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SheetChips(InputAddCategory.entries.map { stringResource(it.label) }, category?.ordinal ?: -1) {
-                category = InputAddCategory.entries[it]; search = ""
-            }
-            val picked = category ?: return@Column
-            if (picked == InputAddCategory.KEYBOARD) OutlinedTextField(search, { search = it }, singleLine = true,
-                label = { Text(stringResource(R.string.input_add_search)) }, modifier = Modifier.fillMaxWidth().testTag("input-add-search"))
-            val choices = remember(picked) { inputAddChoices(context, picked) }
-                .filter { search.isBlank() || it.title.contains(search.trim(), ignoreCase = true) }
-            Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
-                for (choice in choices) PadTextButton(onClick = { draft.add(choice, aspect); draft.adding = false; draft.toolsExpanded = false },
-                    modifier = Modifier.fillMaxWidth().testTag("input-add-${choice.key}")) { Text(choice.title, Modifier.weight(1f)) }
-            }
+        text = { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+            for (choice in remember(trackpads) { inputAddChoices(context, trackpads) }) PadTextButton(
+                onClick = { draft.add(choice, aspect); draft.adding = false; draft.toolsExpanded = false },
+                modifier = Modifier.fillMaxWidth().testTag("input-add-${choice.key}")) { Text(choice.name, Modifier.weight(1f)) }
         } })
 }
 

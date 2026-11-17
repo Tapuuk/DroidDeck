@@ -235,7 +235,6 @@ class InputRouter(private val output: InputOutput) {
                             is InputAction.Keys -> if (down) a.codes.forEach { key(it, true) } else a.codes.asReversed().forEach { key(it, false) }
                             is InputAction.MouseButton -> button(a.code, down)
                             is InputAction.Command -> if (!down) output.command(a.command, role)
-                            is InputAction.Wheel -> if (down) output.scroll(a.steps)
                             else -> Unit
                         }
                     }

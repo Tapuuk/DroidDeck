@@ -32,8 +32,6 @@ sealed interface InputAction {
     data class Directions(val up: Int, val right: Int, val down: Int, val left: Int, val diagonals: List<Int>? = null) : InputAction
     data class Pointer(val speed: Float = 900f) : InputAction
     data class Scroll(val speed: Float = 10f, val horizontal: Boolean = false) : InputAction
-    /** One mouse wheel step per press; negative scrolls up. */
-    data class Wheel(val steps: Int) : InputAction
 }
 
 data class InputProfile(
@@ -105,6 +103,5 @@ internal fun InputAction.validFor(control: InputControl): Boolean = when (this) 
     is InputAction.Directions -> control.dimensions == 2 && listOf(up, right, down, left).all { it in 0..255 } && (diagonals == null || diagonals.size == 4 && diagonals.all { it in 0..255 })
     is InputAction.Pointer -> control.dimensions == 2 && speed.isFinite() && speed in 100f..3000f
     is InputAction.Scroll -> control.dimensions == 2 && speed.isFinite() && speed in 1f..60f
-    is InputAction.Wheel -> control.dimensions == 1 && steps != 0 && steps in -10..10
     else -> true
 }

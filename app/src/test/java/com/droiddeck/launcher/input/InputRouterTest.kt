@@ -33,13 +33,6 @@ class InputRouterTest {
         assertEquals(listOf("key 105 false", "key 103 false"), output.events)
     }
 
-    @Test fun aWheelButtonScrollsOneStepPerPress() {
-        router.setProfile(bind(InputControl.A, InputAction.Wheel(-1)))
-        val button = router.channel(InputRole.PHYSICAL, InputControl.A)
-        button.update(1f); button.update(1f); button.update(0f); button.update(1f)
-        assertEquals(listOf("scroll -1", "scroll -1"), output.events)
-    }
-
     @Test fun horizontalStickUsesXAndKeepsTheVerticalWheelIndependent() {
         router.setProfile(bind(InputControl.RS, InputAction.Scroll(20f, true)).withBinding(InputRole.PHYSICAL, InputControl.LS, InputAction.Scroll(20f)))
         val horizontal = router.channel(InputRole.PHYSICAL, InputControl.RS)

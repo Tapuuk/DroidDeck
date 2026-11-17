@@ -128,26 +128,23 @@ class InputSettingsTest {
         }
     }
 
-    @Test fun addingAKeyFromTheEditorSavesOneLabelledKey() {
+    @Test fun addingAControllerButtonFromTheEditorSavesIt() {
         val library = InputLibraries.read(context)
         val layout = library.layout(InputProfile.GAME, InputRole.SECONDARY)!!
         compose.setContent { DroidDeckTheme { InputSurfaceDialog(InputProfile.GAME, {}, {}, role = InputRole.PRIMARY, layoutId = layout.id,
             bindingsId = library.profile(InputProfile.GAME).binding(InputRole.SECONDARY)) } }
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
-        compose.onNodeWithTag("input-add-key-57").assertDoesNotExist()
-        compose.onNodeWithText(context.getString(R.string.input_add_keyboard)).performClick()
-        compose.onNodeWithTag("input-add-search").performTextInput("spa")
-        compose.onNodeWithTag("input-add-key-30").assertDoesNotExist()
-        compose.onNodeWithTag("input-add-key-57").performClick()
+        compose.onNodeWithTag("input-add-control-right-pad").assertExists()
+        compose.onNodeWithTag("input-add-control-b").performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_properties)).assertDoesNotExist()
         compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle {
             val updated = InputLibraries.read(context)
-            val added = updated.layout(InputProfile.GAME, InputRole.SECONDARY)!!.elements.single { e -> layout.elements.none { it.id == e.id } }
-            assertEquals("Space", added.name)
-            assertEquals(InputAction.Keys(listOf(57)), updated.compile(InputProfile.GAME).elementAction(InputRole.SECONDARY, added.id, added.control))
+                val added = updated.layout(InputProfile.GAME, InputRole.SECONDARY)!!.elements.single { e -> layout.elements.none { it.id == e.id } }
+            assertEquals(InputControl.B.label, added.name)
+            assertEquals(InputAction.Native(InputControl.B), updated.compile(InputProfile.GAME).elementAction(InputRole.SECONDARY, added.id, added.control))
         }
     }
 
@@ -244,7 +241,6 @@ class InputSettingsTest {
             layoutId = layout.id, bindingsId = library.profile("game").binding(InputRole.SECONDARY)) } }
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
-        compose.onNodeWithText(context.getString(R.string.input_add_controller)).performClick()
         compose.onNodeWithTag("input-add-control-a").performScrollTo().performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_hide_tools)).performClick()
@@ -503,14 +499,16 @@ class InputSettingsTest {
             layoutId = layout.id, bindingsId = library.profile("game").binding(InputRole.PRIMARY)) } }
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.input_add_controller)).performClick()
         compose.onNodeWithTag("input-add-control-guide").performScrollTo().performClick()
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performScrollTo().performClick()
+        compose.onNodeWithTag("input-add-control-keyboard").performScrollTo().performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle {
             val after = InputLibraries.read(context).layout("game", InputRole.PRIMARY)!!
             assertEquals(layout.elements, after.elements)
-            assertEquals(setOf("builtin:keyboard"), after.style.removed)
+            assertEquals(emptySet<String>(), after.style.removed)
         }
     }
 
@@ -558,7 +556,6 @@ class InputSettingsTest {
         val slider = compose.onNodeWithTag("input-editor-scale").performScrollTo()
         slider.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(110f) }
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.input_add_controller)).performClick()
         compose.onNodeWithTag("input-add-control-guide").performScrollTo().performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithTag("input-editor-scale").performScrollTo()
@@ -584,7 +581,6 @@ class InputSettingsTest {
         compose.onNodeWithTag("input-editor-scale").performScrollTo()
             .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(110f) }
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.input_add_controller)).performClick()
         compose.onNodeWithTag("input-add-control-left-pad").performScrollTo().performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithTag("input-editor-scale").performScrollTo().assert(SemanticsMatcher.expectValue(percent, "110%"))
@@ -619,7 +615,7 @@ class InputSettingsTest {
         return SurfaceDraft(library.layouts.first { it.id == InputLibraries.OVERLAY }, library.preset(library.profile("game").binding(InputRole.PRIMARY)))
     }
 
-    private fun choice(category: InputAddCategory, key: String) = inputAddChoices(context, category).first { it.key == key }
+    private fun choice(key: String) = inputAddChoices(context, trackpads = true).first { it.key == key }
 
     private fun SurfaceDraft.addOne(choice: InputAddChoice): InputSurfaceElement {
         val before = elements.map { it.id }.toSet()
@@ -631,41 +627,34 @@ class InputSettingsTest {
 
     private fun SurfaceBounds.overlaps(o: SurfaceBounds) = left < o.right && o.left < right && top < o.bottom && o.top < bottom
 
-    @Test fun addingFromEachCategoryCreatesOneBoundAndLabelledControl() {
+    @Test fun addingAControllerInputCreatesOneBoundAndLabelledControl() {
         val draft = overlayDraft()
         val cases = listOf(
-            Triple(choice(InputAddCategory.CONTROLLER, "control-a"), InputAction.Native(InputControl.A), "A"),
-            Triple(choice(InputAddCategory.CONTROLLER, "control-lt"), InputAction.Native(InputControl.LT), InputControl.LT.label),
-            Triple(choice(InputAddCategory.CONTROLLER, "control-ls"), InputAction.Native(InputControl.LS), InputControl.LS.label),
-            Triple(choice(InputAddCategory.CONTROLLER, "control-dpad"), InputAction.Native(), context.getString(R.string.input_group_dpad)),
-            Triple(choice(InputAddCategory.CONTROLLER, "control-right-pad"), InputAction.Native(InputControl.RIGHT_PAD), InputControl.RIGHT_PAD.label),
-            Triple(choice(InputAddCategory.KEYBOARD, "key-57"), InputAction.Keys(listOf(57)), "Space"),
-            Triple(choice(InputAddCategory.KEYBOARD, "key-63"), InputAction.Keys(listOf(63)), "F5"),
-            Triple(choice(InputAddCategory.MOUSE, "mouse-left"), InputAction.MouseButton(272), "LMB"),
-            Triple(choice(InputAddCategory.MOUSE, "mouse-wheel-down"), InputAction.Wheel(1), context.getString(R.string.input_wheel_down)),
-            Triple(choice(InputAddCategory.MOUSE, "mouse-back"), InputAction.MouseButton(275), context.getString(R.string.input_mouse_back)),
-            Triple(choice(InputAddCategory.MOUSE, "mouse-trackpad"), InputAction.Pointer(), context.getString(R.string.input_add_mouse_trackpad)),
+            Triple(choice("control-a"), InputAction.Native(InputControl.A), "A"),
+            Triple(choice("control-lt"), InputAction.Native(InputControl.LT), InputControl.LT.label),
+            Triple(choice("control-ls"), InputAction.Native(InputControl.LS), InputControl.LS.label),
+            Triple(choice("control-dpad"), InputAction.Native(), context.getString(R.string.input_group_dpad)),
+            Triple(choice("control-guide"), InputAction.Native(InputControl.GUIDE), InputControl.GUIDE.label),
+            Triple(choice("control-right-pad"), InputAction.Native(InputControl.RIGHT_PAD), InputControl.RIGHT_PAD.label),
         )
         for ((choice, action, name) in cases) {
             val added = draft.addOne(choice)
             assertEquals(choice.key, name, added.name)
             assertEquals(choice.key, choice.kind, added.kind)
+            assertEquals(choice.key, added.kind.control, added.control)
             assertEquals(choice.key, action, draft.actions[added.id])
             assertTrue(choice.key, action.validFor(added))
             assertEquals(choice.key, action, draft.preset.copy(elements = draft.actions).action(added))
         }
-        for (action in listOf(InputAction.Wheel(-1), InputAction.Wheel(1))) assertEquals(action, InputProfiles.decode(InputProfiles.encode(action)))
-        val pad = draft.elements.last()
-        assertEquals(InputAction.MouseButton(272), draft.clicks[pad.id])
-        assertTrue(pad.mouseGestures)
-        assertEquals(4, inputAddChoices(context, InputAddCategory.CONTROLLER).count { it.kind == InputElementKind.BUTTON && it.control in
-            listOf(InputControl.A, InputControl.B, InputControl.X, InputControl.Y) })
+        assertEquals(listOf("a", "b", "x", "y", "dpad", "ls", "rs", "lb", "rb", "lt", "rt", "l3", "r3", "select", "start", "guide", "qam", "keyboard",
+            "left-pad", "right-pad"), inputAddChoices(context, trackpads = true).map { it.key.removePrefix("control-") })
+        assertTrue(inputAddChoices(context, trackpads = false).none { it.kind == InputElementKind.TRACKPAD })
     }
 
     @Test fun anAddedControlLandsInFreeSpaceAndDuplicatesAreAllowed() {
         val draft = overlayDraft()
-        val first = draft.addOne(choice(InputAddCategory.CONTROLLER, "control-a"))
-        val second = draft.addOne(choice(InputAddCategory.CONTROLLER, "control-a"))
+        val first = draft.addOne(choice("control-a"))
+        val second = draft.addOne(choice("control-a"))
         assertTrue(draft.visible.any { it.id == "legacy:a" })
         assertEquals(draft.actions[first.id], draft.actions[second.id])
         assertFalse(bounds(first).overlaps(bounds(second)))
@@ -678,26 +667,44 @@ class InputSettingsTest {
         val guide = original.first { it.id == "legacy:guide" }
         draft.select(listOf(guide.id)); draft.deleteSelection()
         assertTrue(draft.visible.none { it.id == guide.id })
-        draft.add(choice(InputAddCategory.CONTROLLER, "control-guide"), 16f / 9f)
+        draft.add(choice("control-guide"), 16f / 9f)
         assertEquals(original, draft.elements)
         assertEquals(listOf(guide.id), draft.selection)
         assertTrue(guide.id !in draft.removed)
         val dpad = original.filter { it.id in listOf("legacy:up", "legacy:right", "legacy:down", "legacy:left") }.map { it.id }
         draft.select(dpad); draft.deleteSelection()
-        draft.add(choice(InputAddCategory.CONTROLLER, "control-dpad"), 16f / 9f)
+        draft.add(choice("control-dpad"), 16f / 9f)
         assertEquals(original, draft.elements)
         assertTrue(dpad.none { it in draft.removed })
     }
 
+    @Test fun theKeyboardButtonCanBeRestoredOrAddedAgain() {
+        val draft = overlayDraft()
+        val original = draft.elements
+        assertTrue(original.any { it.id == "builtin:keyboard" })
+        val keyboard = choice("control-keyboard")
+        draft.select(listOf("builtin:keyboard")); draft.deleteSelection()
+        assertTrue(draft.visible.none { it.id == "builtin:keyboard" })
+        draft.add(keyboard, 16f / 9f)
+        assertEquals(original, draft.elements)
+        assertEquals(listOf("builtin:keyboard"), draft.selection)
+        assertTrue(draft.visible.any { it.id == "builtin:keyboard" })
+        val another = draft.addOne(keyboard)
+        assertEquals(InputAction.Command(InputCommand.KEYBOARD), draft.actions[another.id])
+        assertEquals(InputButtonIcons.KEYBOARD, another.icon)
+        assertEquals(context.getString(R.string.input_add_keyboard), another.name)
+        assertTrue(InputAction.Command(InputCommand.KEYBOARD).validFor(another))
+    }
+
     @Test fun deletingAndUndoingBringsBackStockAndAddedControls() {
         val draft = overlayDraft()
-        val added = draft.addOne(choice(InputAddCategory.KEYBOARD, "key-57"))
+        val added = draft.addOne(choice("control-x"))
         draft.deleteSelection()
         assertTrue(draft.elements.none { it.id == added.id })
         assertNull(draft.actions[added.id])
         draft.undo()
         assertEquals(added, draft.elements.single { it.id == added.id })
-        assertEquals(InputAction.Keys(listOf(57)), draft.actions[added.id])
+        assertEquals(InputAction.Native(InputControl.X), draft.actions[added.id])
         draft.select(listOf("legacy:b")); draft.deleteSelection()
         assertTrue("legacy:b" in draft.removed)
         assertTrue(draft.elements.any { it.id == "legacy:b" })
