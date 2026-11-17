@@ -651,7 +651,7 @@ class InputSettingsTest {
             assertTrue(choice.key, action.validFor(added))
             assertEquals(choice.key, action, draft.preset.copy(elements = draft.actions).action(added))
         }
-        assertEquals(listOf("a", "b", "x", "y", "dpad", "ls", "rs", "lb", "rb", "lt", "rt", "l3", "r3", "select", "start", "guide", "qam", "keyboard",
+        assertEquals(listOf("a", "b", "x", "y", "dpad", "ls", "rs", "lb", "rb", "lt", "rt", "l3", "r3", "l4", "r4", "l5", "r5", "select", "start", "guide", "qam", "keyboard",
             "left-pad", "right-pad"), inputAddChoices(context, trackpads = true).map { it.key.removePrefix("control-") })
         assertTrue(inputAddChoices(context, trackpads = false).none { it.kind == InputElementKind.TRACKPAD })
     }
@@ -681,6 +681,16 @@ class InputSettingsTest {
         draft.add(choice("control-dpad"), 16f / 9f)
         assertEquals(original, draft.elements)
         assertTrue(dpad.none { it in draft.removed })
+        val (deck, grip) = deckDraft()
+        val stock = deck.elements
+        deck.deleteSelection()
+        assertTrue(deck.visible.none { it.id == grip })
+        deck.add(choice("control-l4"), 16f / 9f)
+        assertEquals(stock, deck.elements)
+        assertEquals(listOf(grip), deck.selection)
+        assertTrue(grip !in deck.removed)
+        val added = deck.addOne(choice("control-r5"))
+        assertEquals(InputAction.Native(InputControl.R5), deck.actions[added.id])
     }
 
     @Test fun theKeyboardButtonCanBeRestoredOrAddedAgain() {

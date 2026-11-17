@@ -12,7 +12,7 @@ internal data class InputAddChoice(
 
 private val BUTTONS = listOf(InputControl.A, InputControl.B, InputControl.X, InputControl.Y)
 private val CONTROLS = listOf(InputControl.LS, InputControl.RS, InputControl.LB, InputControl.RB, InputControl.LT, InputControl.RT,
-    InputControl.L3, InputControl.R3, InputControl.SELECT, InputControl.START, InputControl.GUIDE, InputControl.QAM)
+    InputControl.L3, InputControl.R3, InputControl.L4, InputControl.R4, InputControl.L5, InputControl.R5, InputControl.SELECT, InputControl.START, InputControl.GUIDE, InputControl.QAM)
 private val DPAD_IDS = listOf(InputControl.UP, InputControl.RIGHT, InputControl.DOWN, InputControl.LEFT).map { "legacy:${it.id}" }
 
 private fun controlChoice(control: InputControl) = InputAddChoice("control-${control.id}", control.label, InputElementKind.from(control), control,
