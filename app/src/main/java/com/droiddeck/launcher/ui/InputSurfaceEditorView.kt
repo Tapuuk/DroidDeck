@@ -1,5 +1,7 @@
 package com.droiddeck.launcher.ui
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
@@ -159,6 +161,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
 
     private fun pop(view: View) {
         val target = view.alpha
+        val layer = view.layerType
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = POP_MS
             interpolator = LINEAR
@@ -168,6 +171,10 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 view.scaleX = s; view.scaleY = s
                 view.alpha = target * CubicEase.EASE.getInterpolation((f * 2.5f).coerceAtMost(1f))
             }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationStart(animation: Animator) { view.setLayerType(LAYER_TYPE_HARDWARE, null) }
+                override fun onAnimationEnd(animation: Animator) { view.setLayerType(layer, null) }
+            })
         }.start()
     }
 
