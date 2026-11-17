@@ -71,4 +71,31 @@ class InputSurfaceToolsTest {
         assertFalse(covers(at, fitted, h - 2 * margin, centred))
         assertEquals(560f, surfaceToolsWidth(w, margin, SurfaceBounds(.2f, 0f, .8f, 1f), 560f, 840f), 0f)
     }
+
+    @Test fun theDeleteBadgeSitsOffTheTopRightCornerAndFlipsInsideAtTheEdges() {
+        val offset = 28 * density; val reach = 22 * density
+        val inside = SurfaceBounds(400f, 300f, 600f, 500f)
+        assertEquals(600f + offset to 300f - offset, deleteBadgeCenter(inside, w, h, offset, reach))
+        val corner = SurfaceBounds(w - 150f, 10f, w - 10f, 150f)
+        assertEquals(w - 10f - offset to 10f + offset, deleteBadgeCenter(corner, w, h, offset, reach))
+        val center = deleteBadgeCenter(inside, w, h, offset, reach)
+        assertTrue(hitsDeleteBadge(center.first + 21 * density, center.second, center, reach))
+        assertTrue(hitsDeleteBadge(center.first - 15 * density, center.second + 15 * density, center, reach))
+        assertFalse(hitsDeleteBadge(center.first, center.second - 23 * density, center, reach))
+        assertTrue(offset * kotlin.math.sqrt(2f) - reach > 14 * density)
+    }
+
+    @Test fun theSelectionPillSitsBesideTheSelectionOnTheRoomierSide() {
+        val pw = 480f; val ph = 240f; val gap = 24f
+        val leftSide = SurfaceBounds(100f, 400f, 300f, 600f)
+        val at = placeSelectionPill(w, h, pw, ph, margin, gap, leftSide, emptyList())
+        assertEquals(300f + gap, at.first, 0f)
+        val rightSide = SurfaceBounds(1500f, 400f, 1700f, 600f)
+        assertEquals(1500f - gap - pw, placeSelectionPill(w, h, pw, ph, margin, gap, rightSide, emptyList()).first, 0f)
+        val tools = SurfaceBounds(320f, 250f, 1200f, 620f)
+        val avoided = placeSelectionPill(w, h, pw, ph, margin, gap, leftSide, listOf(tools))
+        assertEquals(600f + gap, avoided.second, 0f)
+        assertFalse(covers(avoided, pw, ph, SurfaceBounds(tools.left / w, tools.top / h, tools.right / w, tools.bottom / h)))
+        assertFalse(covers(avoided, pw, ph, SurfaceBounds(leftSide.left / w, leftSide.top / h, leftSide.right / w, leftSide.bottom / h)))
+    }
 }

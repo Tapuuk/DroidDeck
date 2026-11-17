@@ -351,6 +351,7 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
             view.isEnabled = !draft.adding
             view.onSelect = { draft.select(it) }
             view.onBeginEdit = draft::checkpoint
+            view.onDelete = draft::deleteSelection
             view.onChange = { changed ->
                 val byId = changed.associateBy { it.id }
                 draft.elements = draft.elements.map { byId[it.id] ?: it }
@@ -369,7 +370,10 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, onSave: () -> Unit, onLeav
         var headerHeight by remember { mutableIntStateOf(0) }
         var contentHeight by remember { mutableIntStateOf(0) }
         var dragging by remember { mutableStateOf(false) }
-        val selected = draft.visible.boundsOf(draft.selection)
+        val badge = with(density) { 50.dp.toPx() }
+        val selected = draft.visible.boundsOf(draft.selection)?.let {
+            SurfaceBounds(it.left, (it.top - badge / screenHeight).coerceAtLeast(0f), (it.right + badge / screenWidth).coerceAtMost(1f), it.bottom)
+        }
         val expandedWidth = with(density) {
             surfaceToolsWidth(screenWidth, margin, selected, minOf(280.dp, maxWidth - 16.dp).toPx(), minOf(420.dp, maxWidth - 16.dp).toPx()).toDp()
         }
@@ -408,10 +412,21 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, onSave: () -> Unit, onLeav
                     Column(Modifier.requiredWidth(expandedWidth).onSizeChanged { contentHeight = it.height }.verticalScroll(rememberScrollState())) {
                         HorizontalDivider()
                         SurfaceToolbar(draft, onSave, onLeave)
-                        HorizontalDivider()
-                        SurfaceSelection(draft)
                     }
                 }
+            }
+        }
+        if (selected != null) {
+            var pillHeight by remember { mutableIntStateOf(0) }
+            val pillWidth = 240.dp
+            val (px, py) = placeSelectionPill(screenWidth, screenHeight, with(density) { pillWidth.toPx() },
+                pillHeight.toFloat().takeIf { it > 0f } ?: with(density) { 120.dp.toPx() }, margin, with(density) { 12.dp.toPx() },
+                SurfaceBounds(selected.left * screenWidth, selected.top * screenHeight, selected.right * screenWidth, selected.bottom * screenHeight),
+                listOf(SurfaceBounds(x, y, x + targetWidth, y + targetHeight)))
+            Surface(Modifier.offset { IntOffset(px.roundToInt(), py.roundToInt()) }.width(pillWidth).onSizeChanged { pillHeight = it.height }
+                .testTag("input-selection-pill"), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp, shadowElevation = 10.dp) {
+                Column(Modifier.padding(vertical = 4.dp)) { SelectionSliders(draft) }
             }
         }
     }
@@ -455,16 +470,19 @@ private fun SurfaceSelection(draft: SurfaceDraft) {
             }
             else -> Text(stringResource(R.string.input_editor_hint))
         }
-        if (group != null || e != null) {
-            draft.selectionSize?.let { size ->
-                val range = minOf(SELECTION_SIZES.first, size / 5 * 5)..maxOf(SELECTION_SIZES.last, (size + 4) / 5 * 5)
-                SliderRow(stringResource(R.string.input_selection_size), null, size, range, step = 5,
-                    format = { "$it%" }, modifier = Modifier.testTag("input-selection-size")) { draft.resizeSelection(it) }
-            }
-            SliderRow(stringResource(R.string.ctrl_opacity), null, (draft.selectionOpacity * 100).roundToInt().coerceIn(20, 100), 20..100, step = 5,
-                format = { "$it%" }, modifier = Modifier.testTag("input-selection-opacity")) { draft.setSelectionOpacity(it) }
-        }
+        if (group != null || e != null) SelectionSliders(draft)
     }
+}
+
+@Composable
+private fun SelectionSliders(draft: SurfaceDraft) {
+    draft.selectionSize?.let { size ->
+        val range = minOf(SELECTION_SIZES.first, size / 5 * 5)..maxOf(SELECTION_SIZES.last, (size + 4) / 5 * 5)
+        SliderRow(stringResource(R.string.input_selection_size), null, size, range, step = 5,
+            format = { "$it%" }, modifier = Modifier.testTag("input-selection-size")) { draft.resizeSelection(it) }
+    }
+    SliderRow(stringResource(R.string.ctrl_opacity), null, (draft.selectionOpacity * 100).roundToInt().coerceIn(20, 100), 20..100, step = 5,
+        format = { "$it%" }, modifier = Modifier.testTag("input-selection-opacity")) { draft.setSelectionOpacity(it) }
 }
 
 private val SELECTION_SIZES = 40..250

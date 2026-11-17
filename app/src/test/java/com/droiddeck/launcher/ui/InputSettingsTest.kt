@@ -171,6 +171,32 @@ class InputSettingsTest {
         }
     }
 
+    @Test fun theSelectedControlCarriesItsDeleteBadgeAndSliders() {
+        val library = InputLibraries.read(context)
+        val layout = library.layouts.first { it.id == InputLibraries.OVERLAY }
+        compose.setContent { DroidDeckTheme { InputSurfaceDialog(InputProfile.GAME, {}, {}, role = InputRole.PRIMARY, layoutId = layout.id,
+            bindingsId = library.profile(InputProfile.GAME).binding(InputRole.PRIMARY)) } }
+        val canvas = compose.onNodeWithTag("input-layout-canvas").fetchSemanticsNode().boundsInRoot
+        val start = layout.elements.first { it.id == "legacy:start" }
+        val target = androidx.compose.ui.geometry.Rect(start.x * canvas.width, start.y * canvas.height,
+            (start.x + start.width) * canvas.width, (start.y + start.height) * canvas.height)
+        compose.onNodeWithTag("input-selection-pill").assertDoesNotExist()
+        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(target.center) }
+        compose.onNodeWithTag("input-selection-size").assertExists()
+        compose.onNode(hasTestTag("input-selection-size") and hasAnyAncestor(hasTestTag("input-editor-panel"))).assertDoesNotExist()
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.onNodeWithText(context.getString(R.string.input_editor_redo)).assertExists()
+        compose.onNodeWithTag("input-remove-selection").assertDoesNotExist()
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        val density = context.resources.displayMetrics.density
+        val badge = deleteBadgeCenter(SurfaceBounds(target.left, target.top, target.right, target.bottom), canvas.width, canvas.height, 28 * density, 22 * density)
+        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(androidx.compose.ui.geometry.Offset(badge.first - 14 * density, badge.second + 14 * density)) }
+        compose.onNodeWithTag("input-selection-pill").assertDoesNotExist()
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(setOf("legacy:start"), InputLibraries.read(context).layouts.first { it.id == layout.id }.style.removed) }
+    }
+
     @Test fun aNewProfileIsIndependentAndDoesNotBecomeActive() {
         compose.setContent { DroidDeckTheme { InputSettingsPage({}) } }
         compose.onNodeWithText(context.getString(R.string.input_new_profile)).performScrollTo().performClick()

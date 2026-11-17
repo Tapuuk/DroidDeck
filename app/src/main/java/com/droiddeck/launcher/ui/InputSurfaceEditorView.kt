@@ -15,6 +15,8 @@ import com.droiddeck.launcher.input.InputSurfaceElement
 import com.droiddeck.launcher.input.InputSurfaceStyle
 import com.droiddeck.launcher.input.SurfaceBounds
 import com.droiddeck.launcher.input.boundsOf
+import com.droiddeck.launcher.input.deleteBadgeCenter
+import com.droiddeck.launcher.input.hitsDeleteBadge
 import com.droiddeck.launcher.input.moveSelection
 import com.droiddeck.launcher.input.pressSelection
 import com.droiddeck.launcher.input.resizeSelection
@@ -37,9 +39,15 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     var onSelect: (List<String>) -> Unit = {}
     var onBeginEdit: () -> Unit = {}
     var onChange: (List<InputSurfaceElement>) -> Unit = {}
+    var onDelete: () -> Unit = {}
     private val preview = InputSurfaceView(context)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(26, 159, 255); strokeWidth = 2 * resources.displayMetrics.density }
     private val radius = 14 * resources.displayMetrics.density
+    private val badgeRadius = 16 * resources.displayMetrics.density
+    private val badgeReach = 22 * resources.displayMetrics.density
+    private val badgeOffset = 28 * resources.displayMetrics.density
+    private val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var badge = false
     private var original: List<InputSurfaceElement>? = null
     private var before: List<String> = emptyList()
     private var hit: String? = null
@@ -64,6 +72,20 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         paint.style = Paint.Style.STROKE; canvas.drawRect(l, t, r, b, paint)
         paint.style = Paint.Style.FILL
         for (x in listOf(l, r)) for (y in listOf(t, b)) canvas.drawCircle(x, y, radius / 3, paint)
+        val (cx, cy) = badgeCenter() ?: return
+        val unit = badgeRadius / 16
+        badgePaint.style = Paint.Style.FILL; badgePaint.color = Color.rgb(229, 72, 77)
+        canvas.drawCircle(cx, cy, badgeRadius, badgePaint)
+        badgePaint.color = Color.WHITE; badgePaint.style = Paint.Style.STROKE; badgePaint.strokeWidth = 1.8f * unit; badgePaint.strokeCap = Paint.Cap.ROUND
+        canvas.drawLine(cx - 6 * unit, cy - 4.5f * unit, cx + 6 * unit, cy - 4.5f * unit, badgePaint)
+        canvas.drawLine(cx - 2 * unit, cy - 7 * unit, cx + 2 * unit, cy - 7 * unit, badgePaint)
+        canvas.drawRoundRect(cx - 4.5f * unit, cy - 2.5f * unit, cx + 4.5f * unit, cy + 7 * unit, 1.5f * unit, 1.5f * unit, badgePaint)
+    }
+
+    internal fun badgeCenter(): Pair<Float, Float>? {
+        val b = elements.boundsOf(selection) ?: return null
+        if (width == 0 || height == 0) return null
+        return deleteBadgeCenter(SurfaceBounds(width * b.left, height * b.top, width * b.right, height * b.bottom), width.toFloat(), height.toFloat(), badgeOffset, badgeReach)
     }
 
     private fun clearGuides() { guideX = null; guideY = null; invalidate() }
@@ -76,6 +98,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 clearGuides()
+                badge = badgeCenter()?.let { hitsDeleteBadge(event.x, event.y, it, badgeReach) } == true
+                if (badge) return true
                 downX = event.x; downY = event.y; dragging = false; corner = 0
                 before = selection
                 elements.boundsOf(selection)?.let { b ->
@@ -96,6 +120,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 original = elements.takeIf { selection.isNotEmpty() }
             }
             MotionEvent.ACTION_MOVE -> {
+                if (badge) return true
                 val start = original ?: return true
                 if (!dragging && abs(event.x - downX) + abs(event.y - downY) > ViewConfiguration.get(context).scaledTouchSlop) {
                     dragging = true; onBeginEdit()
@@ -119,13 +144,18 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
+                if (badge) {
+                    badge = false
+                    if (badgeCenter()?.let { hitsDeleteBadge(event.x, event.y, it, badgeReach) } == true) onDelete()
+                    return true
+                }
                 if (!dragging && corner == 0 && !keep) {
                     val tapped = elements.tapSelection(before, hit)
                     if (tapped != selection) { selection = tapped; onSelect(tapped) }
                 }
                 original = null; dragging = false; clearGuides()
             }
-            MotionEvent.ACTION_CANCEL -> { original = null; dragging = false; clearGuides() }
+            MotionEvent.ACTION_CANCEL -> { badge = false; original = null; dragging = false; clearGuides() }
         }
         return true
     }

@@ -44,3 +44,33 @@ internal fun freeSurfaceSpot(elements: List<SurfaceBounds>, width: Float, height
         { (x, y) -> -(elements.minOfOrNull { clearance(it, x, y) } ?: 0f) },
         { (x, y) -> hypot(x - maxX / 2, y - maxY / 2) }))
 }
+
+/** Centre of the delete badge: [offset] pixels diagonally out from the top-right corner of [selection] (pixels), moved inside on a clipped side. */
+internal fun deleteBadgeCenter(selection: SurfaceBounds, width: Float, height: Float, offset: Float, reach: Float): Pair<Float, Float> {
+    val x = if (selection.right + offset + reach <= width) selection.right + offset else selection.right - offset
+    val y = if (selection.top - offset - reach >= 0f) selection.top - offset else selection.top + offset
+    return x to y
+}
+
+internal fun hitsDeleteBadge(x: Float, y: Float, center: Pair<Float, Float>, reach: Float) = hypot(x - center.first, y - center.second) <= reach
+
+/**
+ * Top-left, in pixels, for the size and opacity pill: beside [selection] on the side with more room, else below or above, avoiding
+ * [selection] and [avoid] (both pixels). Falls back to the spot covering the selection least.
+ */
+internal fun placeSelectionPill(width: Float, height: Float, pillWidth: Float, pillHeight: Float, margin: Float, gap: Float,
+    selection: SurfaceBounds, avoid: List<SurfaceBounds>): Pair<Float, Float> {
+    fun clamp(x: Float, y: Float) = x.coerceIn(margin, (width - pillWidth - margin).coerceAtLeast(margin)) to
+        y.coerceIn(margin, (height - pillHeight - margin).coerceAtLeast(margin))
+    fun covered(b: SurfaceBounds, at: Pair<Float, Float>) =
+        max(0f, min(at.first + pillWidth, b.right) - max(at.first, b.left)) * max(0f, min(at.second + pillHeight, b.bottom) - max(at.second, b.top))
+    val right = clamp(selection.right + gap, selection.centerY - pillHeight / 2)
+    val left = clamp(selection.left - gap - pillWidth, selection.centerY - pillHeight / 2)
+    val below = clamp(selection.centerX - pillWidth / 2, selection.bottom + gap)
+    val above = clamp(selection.centerX - pillWidth / 2, selection.top - gap - pillHeight)
+    val sides = if (width - selection.right >= selection.left) listOf(right, left) else listOf(left, right)
+    val vertical = if (height - selection.bottom >= selection.top) listOf(below, above) else listOf(above, below)
+    val candidates = sides + vertical
+    return candidates.firstOrNull { at -> covered(selection, at) == 0f && avoid.all { covered(it, at) == 0f } }
+        ?: candidates.minBy { covered(selection, it) }
+}
