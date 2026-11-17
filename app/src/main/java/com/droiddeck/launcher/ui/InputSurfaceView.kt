@@ -145,8 +145,11 @@ class InputSurfaceView(
         customCanvas?.let { canvas -> for (i in 0 until canvas.childCount) styleElement(canvas.getChildAt(i)) }
     }
 
+    /** The alpha [view], one of this surface's controls, has when nothing animates it. */
+    internal fun restingAlpha(view: View) = surfaceStyle.opacity / 100f * ((view.tag as? InputSurfaceElement)?.opacity ?: 1f)
+
     private fun styleElement(view: View) {
-        view.alpha = surfaceStyle.opacity / 100f * ((view.tag as? InputSurfaceElement)?.opacity ?: 1f)
+        view.alpha = restingAlpha(view)
         (view as? Surface)?.tint = surfaceStyle.tint
         view.invalidate()
     }

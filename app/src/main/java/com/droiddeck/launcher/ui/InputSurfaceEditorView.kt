@@ -160,7 +160,6 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     }
 
     private fun pop(view: View) {
-        val target = view.alpha
         val layer = view.layerType
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = POP_MS
@@ -169,7 +168,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 val f = it.animatedFraction
                 val s = .6f + .4f * CubicEase.POP.getInterpolation(f)
                 view.scaleX = s; view.scaleY = s
-                view.alpha = target * CubicEase.EASE.getInterpolation((f * 2.5f).coerceAtMost(1f))
+                view.alpha = preview.restingAlpha(view) * CubicEase.EASE.getInterpolation((f * 2.5f).coerceAtMost(1f))
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationStart(animation: Animator) { view.setLayerType(LAYER_TYPE_HARDWARE, null) }

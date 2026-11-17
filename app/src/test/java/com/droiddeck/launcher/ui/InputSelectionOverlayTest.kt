@@ -18,6 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -184,6 +185,21 @@ class InputSelectionOverlayTest {
         val cleared = RecordingCanvas()
         view.drawOverlay(cleared)
         assertEquals(0, cleared.calls)
+    }
+
+    @Test fun aPopInEndsAtTheOpacitySetWhileItPlays() {
+        val view = editor(a)
+        fun control() = generateSequence(listOf<View>(view)) { level -> level.flatMap { v -> (v as? android.view.ViewGroup)?.let { g -> (0 until g.childCount).map(g::getChildAt) }.orEmpty() }.takeIf { it.isNotEmpty() } }
+            .flatten().first { (it.tag as? InputSurfaceElement)?.id == "one" }
+        val popped = control()
+        view.popIn(listOf("one"))
+        assertEquals(View.LAYER_TYPE_HARDWARE, popped.layerType)
+        view.elements = listOf(a.copy(opacity = .5f))
+        assertTrue(popped === control())
+        shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(500))
+        assertEquals(.5f, popped.alpha, .001f)
+        assertEquals(1f, popped.scaleX, .001f)
+        assertEquals(View.LAYER_TYPE_NONE, popped.layerType)
     }
 
     @Test fun groupOutlineDashesWithoutAPathEffect() {
