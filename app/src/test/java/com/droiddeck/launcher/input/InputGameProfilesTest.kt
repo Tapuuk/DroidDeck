@@ -59,6 +59,14 @@ class InputGameProfilesTest {
         assertEquals(off.profiles.size, again.profiles.size)
     }
 
+    @Test fun buttonsRemovedForOneGameStayOnTheSharedControls() {
+        val on = library.withGameProfile("1091500", "Game")
+        val game = on.activeLayout(false, InputRole.PRIMARY, "1091500")!!
+        val removed = on.withLayout(game.copy(style = game.style.copy(removed = setOf("legacy:a")))).validate()
+        assertEquals(setOf("legacy:a"), removed.activeLayout(false, InputRole.PRIMARY, "1091500")!!.style.removed)
+        assertTrue(removed.activeLayout(false, InputRole.PRIMARY)!!.style.removed.isEmpty())
+    }
+
     @Test fun removingTheProfileDropsTheGameLink() {
         val result = library.withGameProfile("1091500", "Game").removeProfile(gameProfileId("1091500")).validate()
         assertTrue(result.games.isEmpty())

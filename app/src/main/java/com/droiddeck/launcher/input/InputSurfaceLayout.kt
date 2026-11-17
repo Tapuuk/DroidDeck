@@ -42,14 +42,10 @@ data class InputSurfaceElement(
         width = width.coerceIn(0.03f, (1f - x.coerceIn(0f, 0.97f)).coerceAtLeast(0.03f)), height = height.coerceIn(0.03f, (1f - y.coerceIn(0f, 0.97f)).coerceAtLeast(0.03f)))
 }
 
-internal val QUICK_BUTTONS = listOf(InputCommand.STEAM, InputCommand.QUICK_ACCESS, InputCommand.KEYBOARD)
+internal val QUICK_BUTTON_IDS = mapOf(InputCommand.STEAM to "legacy:${InputControl.GUIDE.id}",
+    InputCommand.QUICK_ACCESS to "legacy:${InputControl.QAM.id}", InputCommand.KEYBOARD to "builtin:keyboard")
 
-val InputSurfaceElement.quickButton: InputCommand? get() = when {
-    id == "legacy:${InputControl.GUIDE.id}" -> InputCommand.STEAM
-    id == "legacy:${InputControl.QAM.id}" -> InputCommand.QUICK_ACCESS
-    id == "builtin:keyboard" -> InputCommand.KEYBOARD
-    else -> null
-}
+val InputSurfaceElement.quickButton: InputCommand? get() = QUICK_BUTTON_IDS.entries.firstOrNull { it.value == id }?.key
 
 internal fun List<InputSurfaceElement>.scaled(factor: Float): List<InputSurfaceElement> = map { e ->
     fun anchor(centre: Float) = when { centre < 1f / 3f -> 0f; centre > 2f / 3f -> 1f; else -> .5f }

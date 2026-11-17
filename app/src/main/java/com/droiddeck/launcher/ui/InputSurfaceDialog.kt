@@ -59,7 +59,7 @@ import com.droiddeck.launcher.input.*
 import com.droiddeck.launcher.session.SessionState
 
 private data class SurfaceSnapshot(val elements: List<InputSurfaceElement>, val actions: Map<String, InputAction>,
-    val clicks: Map<String, InputAction>, val scale: Float)
+    val clicks: Map<String, InputAction>, val scale: Float, val removed: Set<String>)
 
 private class GamepadScaler(private val context: android.content.Context, private val width: Int, private val height: Int) {
     private fun generator(scale: Float) = LegacyGamepadLayout(context, width, height, scale = scale)
@@ -75,6 +75,8 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     var elements by mutableStateOf(layout.elements)
     var actions by mutableStateOf(preset.elements)
     var clicks by mutableStateOf(preset.clicks)
+    var removed by mutableStateOf(layout.style.removed)
+    val visible get() = elements.filterNot { it.id in removed }
     var selection by mutableStateOf<List<String>>(emptyList())
         private set
     val selected get() = selection.singleOrNull()
@@ -86,6 +88,7 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     var toolsY by mutableFloatStateOf(.02f)
     var snap by mutableStateOf(snap)
     var adding by mutableStateOf(false)
+    var restoring by mutableStateOf(false)
     var properties by mutableStateOf(false)
     var clickProperties by mutableStateOf(false)
     var history by mutableStateOf<List<SurfaceSnapshot>>(emptyList())
@@ -101,13 +104,26 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     val positioned get() = (if (rescales) gamepad!!.reset(elements) else defaults?.let { elements.withPositionsOf(it) })
         ?.takeIf { it != elements || rescales && layoutScale != 1f }
     val element get() = elements.firstOrNull { it.id == selected }
-    val dirty get() = elements != layout.elements || actions != preset.elements || clicks != preset.clicks || layoutScale != layout.scale
-    fun checkpoint() { history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale)).takeLast(40) }
+    val dirty get() = elements != layout.elements || actions != preset.elements || clicks != preset.clicks || layoutScale != layout.scale ||
+        removed != layout.style.removed
+    fun checkpoint() { history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale, removed)).takeLast(40) }
     fun undo() {
         sizeEdit = null; opacityEdit = null
-        history.lastOrNull()?.let { elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; history = history.dropLast(1) }
-        val kept = selection.filter { id -> elements.any { it.id == id } }
-        select(if (kept.size > 1) elements.groupOf(kept.first()) else kept)
+        history.lastOrNull()?.let { elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; removed = it.removed; history = history.dropLast(1) }
+        val kept = selection.filter { id -> visible.any { it.id == id } }
+        select(if (kept.size > 1) visible.groupOf(kept.first()) else kept)
+    }
+    fun removeSelection() {
+        if (selection.isEmpty()) return
+        checkpoint(); removed = removed + selection; select(emptyList())
+    }
+    fun restore(ids: Collection<String>) {
+        if (ids.none { it in removed }) return
+        checkpoint(); removed = removed - ids.toSet()
+        select(listOfNotNull(ids.singleOrNull()))
+    }
+    fun delete(id: String) {
+        checkpoint(); elements = elements.filterNot { it.id == id }; actions = actions - id; clicks = clicks - id; removed = removed - id
     }
     fun scaleAll(percent: Int) {
         val base = scaleBase?.takeIf { it.second == elements } ?: Triple(elements, elements, if (rescales) layoutScale else 0f).also { checkpoint() }
@@ -186,7 +202,8 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
             InputLibraries.update(context) { latest ->
                 val l = latest.layouts.first { it.id == savedLayout.id }
                 val p = latest.preset(savedBindings.id)
-                latest.withLayout(l.copy(elements = draft.elements, aspect = target?.let(::displayAspect) ?: l.aspect, scale = draft.layoutScale)).withPreset(p.copy(elements = draft.actions.filterKeys { id -> draft.elements.any { it.id == id } },
+                latest.withLayout(l.copy(elements = draft.elements, aspect = target?.let(::displayAspect) ?: l.aspect, scale = draft.layoutScale,
+                    style = l.style.copy(removed = draft.removed.filter { id -> draft.elements.any { it.id == id } }.toSet()))).withPreset(p.copy(elements = draft.actions.filterKeys { id -> draft.elements.any { it.id == id } },
                     clicks = draft.clicks.filterKeys { id -> draft.elements.any { it.id == id && it.hasClick } }))
             }
         }.onSuccess { onChanged(); onDismiss() }.onFailure { failure = it.message ?: context.getString(R.string.input_save_failed) }
@@ -274,6 +291,7 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
             draft.elements = draft.elements + element; draft.select(listOf(element.id))
             draft.adding = false; draft.toolsExpanded = false }) { Text(stringResource(kind.label())) }
     } })
+    if (draft.restoring) RemovedElementsDialog(draft)
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text(stringResource(R.string.input_editor_discard)) },
         confirmButton = { PadTextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) } },
         dismissButton = { PadTextButton(onClick = { discard = false }) { Text(stringResource(R.string.common_cancel)) } })
@@ -282,12 +300,29 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
 }
 
 @Composable
+private fun RemovedElementsDialog(draft: SurfaceDraft) {
+    val removed = draft.elements.filter { it.id in draft.removed }
+    LaunchedEffect(removed.isEmpty()) { if (removed.isEmpty()) draft.restoring = false }
+    AlertDialog(onDismissRequest = { draft.restoring = false }, title = { Text(stringResource(R.string.input_removed_title)) },
+        text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(stringResource(R.string.input_removed_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            for (e in removed) Row(Modifier.fillMaxWidth().testTag("input-removed-${e.id}"), verticalAlignment = Alignment.CenterVertically) {
+                Text(e.name, Modifier.weight(1f), maxLines = 1)
+                PadTextButton(onClick = { draft.restore(listOf(e.id)) }) { Text(stringResource(R.string.input_add_back)) }
+                PadTextButton(onClick = { draft.delete(e.id) }) { Text(stringResource(R.string.input_delete_element)) }
+            }
+        } },
+        confirmButton = { PadTextButton(onClick = { draft.restore(removed.map { it.id }); draft.restoring = false }) { Text(stringResource(R.string.input_add_back_all)) } },
+        dismissButton = { PadTextButton(onClick = { draft.restoring = false }) { Text(stringResource(R.string.common_close)) } })
+}
+
+@Composable
 private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
     AndroidView(factory = { InputSurfaceEditorView(it) }, modifier = Modifier.fillMaxSize().testTag("input-layout-canvas"),
         update = { view ->
             view.setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else android.graphics.Color.rgb(10, 11, 13))
-            view.style = draft.layout.style.copy(hidden = emptySet()); view.elements = draft.elements; view.selection = draft.selection; view.snap = draft.snap
-            view.isEnabled = !draft.properties && !draft.adding
+            view.style = draft.layout.style.copy(removed = emptySet()); view.elements = draft.visible; view.selection = draft.selection; view.snap = draft.snap
+            view.isEnabled = !draft.properties && !draft.adding && !draft.restoring
             view.onSelect = { if (!draft.properties) draft.select(it) }
             view.onBeginEdit = draft::checkpoint
             view.onChange = { changed ->
@@ -355,6 +390,8 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
         SecondaryButton(stringResource(R.string.common_cancel), compact = true, onClick = onLeave)
         SecondaryButton(stringResource(R.string.input_editor_add), enabled = draft.elements.size < 64, compact = true) { draft.adding = true }
         SecondaryButton(stringResource(R.string.input_editor_undo), enabled = draft.history.isNotEmpty(), compact = true) { draft.undo() }
+        if (draft.removed.isNotEmpty()) SecondaryButton(stringResource(R.string.input_removed_count, draft.removed.size), compact = true,
+            modifier = Modifier.testTag("input-editor-removed")) { draft.restoring = true }
         if (draft.defaults != null) SecondaryButton(stringResource(R.string.input_reset_positions), enabled = draft.positioned != null, compact = true) { draft.resetPositions() }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(draft.snap, { draft.snap = it; ControllerPrefs.setSnap(context, it) })
@@ -370,21 +407,20 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
 @Composable
 private fun SurfaceSelection(draft: SurfaceDraft) {
     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val group = draft.elements.selectedGroup(draft.selection)
+        val group = draft.visible.selectedGroup(draft.selection)
         val e = draft.element
         when {
             group != null -> {
                 Text(stringResource(group.label()), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(R.string.input_group_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SecondaryButton(stringResource(R.string.input_remove_element), compact = true, modifier = Modifier.testTag("input-remove-selection")) { draft.removeSelection() }
             }
             e != null -> {
                 Text(e.name, style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     PrimaryButton(stringResource(R.string.input_properties), compact = true) { draft.clickProperties = false; draft.properties = true }
                     if (e.hasClick) SecondaryButton(stringResource(R.string.input_click_properties), compact = true) { draft.clickProperties = true; draft.properties = true }
-                    SecondaryButton(stringResource(R.string.input_remove_element), compact = true) {
-                        draft.checkpoint(); draft.elements = draft.elements.filterNot { it.id == e.id }; draft.actions = draft.actions - e.id; draft.clicks = draft.clicks - e.id; draft.select(emptyList())
-                    }
+                    SecondaryButton(stringResource(R.string.input_remove_element), compact = true, modifier = Modifier.testTag("input-remove-selection")) { draft.removeSelection() }
                 }
             }
             else -> Text(stringResource(R.string.input_editor_hint))

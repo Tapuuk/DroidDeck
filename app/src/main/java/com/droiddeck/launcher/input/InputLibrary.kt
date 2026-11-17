@@ -9,9 +9,9 @@ enum class InputLayoutScreen { MAIN, SECONDARY, BOTH;
         if (role == InputRole.PRIMARY) this == MAIN else this == SECONDARY)
 }
 
-data class InputSurfaceStyle(val tint: Int? = ControllerPrefs.STEAM_BLUE, val opacity: Int = 100, val hidden: Set<InputCommand> = emptySet()) {
-    fun hides(element: InputSurfaceElement) = element.quickButton?.let { it in hidden } == true
-    fun shown(elements: List<InputSurfaceElement>) = if (hidden.isEmpty()) elements else elements.filterNot(::hides)
+data class InputSurfaceStyle(val tint: Int? = ControllerPrefs.STEAM_BLUE, val opacity: Int = 100, val removed: Set<String> = emptySet()) {
+    fun hides(element: InputSurfaceElement) = element.id in removed
+    fun shown(elements: List<InputSurfaceElement>) = if (removed.isEmpty()) elements else elements.filterNot(::hides)
 }
 
 data class SavedInputLayout(
@@ -24,9 +24,6 @@ data class SavedInputLayout(
     val scale: Float = 1f,
 ) {
     val editable get() = template == InputLayoutTemplate.CUSTOM
-    val quickButtons get() = QUICK_BUTTONS.filter { button -> elements.any { it.quickButton == button } }
-    fun withQuickButton(button: InputCommand, shown: Boolean) =
-        copy(style = style.copy(hidden = if (shown) style.hidden - button else style.hidden + button))
     fun derived(id: String, name: String) = copy(id = id, name = name, origin = origin ?: this.id)
     val adaptiveSticks get() = elements.filter { it.kind == InputElementKind.STICK }.takeIf { editable && it.isNotEmpty() }?.all { it.floating && it.hideWhenIdle }
     fun supports(role: InputRole) = screen.supports(role) && when (template) {
@@ -252,7 +249,7 @@ data class InputLibrary(
         require(selected == InputProfiles.AUTO || profiles.any { it.id == selected })
         require(profiles.any { it.id == steam } && profiles.any { it.id == desktop })
         for (layout in layouts) {
-            require(layout.style.opacity in 1..100 && layout.style.hidden.all { it in QUICK_BUTTONS })
+            require(layout.style.opacity in 1..100 && layout.style.removed.size <= 64 && layout.style.removed.all { it.isNotBlank() && it.length <= 128 })
             require(layout.aspect == 0f || layout.aspect.isFinite() && layout.aspect in .05f..20f)
             require(layout.scale.isFinite() && layout.scale in .5f..2f)
             inputName(layout.name); require(layout.elements.size <= 64); unique(layout.elements.map { it.id })

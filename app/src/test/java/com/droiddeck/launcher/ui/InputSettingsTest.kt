@@ -450,19 +450,23 @@ class InputSettingsTest {
         com.droiddeck.launcher.input.ControllerPrefs.setSnap(context, true)
     }
 
-    @Test fun quickButtonTogglesHideBuiltInButtonsWithoutDeletingThem() {
-        compose.setContent { DroidDeckTheme { InputSettingsPage({}) } }
-        compose.onNodeWithTag("input-profile-game").performScrollTo().performClick()
-        compose.onNodeWithTag("input-part-primary").performScrollTo().performClick()
-        val before = InputLibraries.read(context).layout("game", InputRole.PRIMARY)!!
-        compose.onNodeWithTag("setting-quick-keyboard").performScrollTo().performClick()
+    @Test fun editorAddsRemovedButtonsBackWhereTheyWere() {
+        val library = InputLibraries.read(context)
+        val layout = library.layout("game", InputRole.PRIMARY)!!
+        val removed = setOf("builtin:keyboard", "legacy:guide")
+        InputLibraries.update(context) { it.withLayout(layout.copy(style = layout.style.copy(removed = removed))) }
+        compose.setContent { DroidDeckTheme { InputSurfaceDialog("game", {}, {}, role = InputRole.PRIMARY,
+            layoutId = layout.id, bindingsId = library.profile("game").binding(InputRole.PRIMARY)) } }
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.onNodeWithTag("input-editor-removed").performScrollTo().performClick()
+        compose.onNode(hasText(context.getString(R.string.input_add_back)) and hasAnyAncestor(hasTestTag("input-removed-builtin:keyboard"))).performClick()
+        compose.onNodeWithText(context.getString(R.string.common_close)).performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle {
             val after = InputLibraries.read(context).layout("game", InputRole.PRIMARY)!!
-            assertEquals(before.elements, after.elements)
-            assertEquals(setOf(InputCommand.KEYBOARD), after.style.hidden)
+            assertEquals(layout.elements, after.elements)
+            assertEquals(setOf("legacy:guide"), after.style.removed)
         }
-        compose.onNodeWithTag("setting-quick-keyboard").performScrollTo().performClick()
-        compose.runOnIdle { assertTrue(InputLibraries.read(context).layout("game", InputRole.PRIMARY)!!.style.hidden.isEmpty()) }
     }
 
     @Test fun layoutsCanBeImportedAndExported() {

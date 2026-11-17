@@ -134,10 +134,6 @@ object InputLibraries {
         }
     }.onSuccess { ControllerPrefs.setAdaptiveSticks(context, on) }.isSuccess
 
-    fun setQuickButton(context: Context, layoutId: String, button: InputCommand, shown: Boolean): Boolean = runCatching {
-        update(context) { library -> library.layouts.firstOrNull { it.id == layoutId && it.editable }?.let { library.withLayout(it.withQuickButton(button, shown)) } ?: library }
-    }.isSuccess
-
     fun defaultPositions(context: Context, library: InputLibrary, layout: SavedInputLayout): List<InputSurfaceElement>? {
         val origin = layout.origin ?: layout.id
         InputStockLayouts.layouts().firstOrNull { it.id == origin }?.let { return it.elements }
@@ -307,7 +303,7 @@ object InputLibraries {
                 .put("elementOpacity", e.opacity.toDouble()).put("buttonShape", e.buttonShape.name).put("showLabel", e.showLabel).put("alwaysShown", e.alwaysShown))
             layouts.put(JSONObject().put("id", layout.id).put("name", layout.name).put("template", layout.template.name).put("elements", elements)
                 .put("tint", layout.style.tint ?: JSONObject.NULL).put("opacity", layout.style.opacity).put("screen", layout.screen.name).put("aspect", layout.aspect.toDouble()).put("scale", layout.scale.toDouble())
-                .put("hidden", JSONArray(layout.style.hidden.map { it.name }.sorted())).put("origin", layout.origin ?: JSONObject.NULL))
+                .put("removed", JSONArray(layout.style.removed.filter { id -> layout.elements.any { it.id == id } }.sorted())).put("origin", layout.origin ?: JSONObject.NULL))
         }
         val bindings = JSONArray()
         for (b in library.bindings) {
@@ -350,7 +346,7 @@ object InputLibraries {
             }
             SavedInputLayout(layout.getString("id"), layout.getString("name"), elements, InputLayoutTemplate.valueOf(layout.getString("template")),
                 InputSurfaceStyle(if (!layout.has("tint")) ControllerPrefs.STEAM_BLUE else if (layout.isNull("tint")) null else layout.getInt("tint"), layout.optInt("opacity", 100),
-                    layout.optJSONArray("hidden")?.let { hidden -> (0 until hidden.length()).map { InputCommand.valueOf(hidden.getString(it)) }.toSet() }.orEmpty()),
+                    removedElements(layout, elements)),
                 InputLayoutScreen.valueOf(layout.optString("screen", InputLayoutScreen.BOTH.name)), layout.optDouble("aspect", 0.0).toFloat(), layout.optionalString("origin"),
                     layout.optDouble("scale", 1.0).toFloat())
         }
@@ -385,6 +381,13 @@ object InputLibraries {
         }.orEmpty()
         InputLibrary(profiles, layouts, bindings, doc.getString("selected"), doc.getString("steam"), doc.getString("desktop"), selections, games).validate()
     }.getOrNull()
+
+    // Saves before element removal stored hidden quick buttons as command names under "hidden".
+    private fun removedElements(layout: JSONObject, elements: List<InputSurfaceElement>): Set<String> {
+        fun strings(key: String) = layout.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+        val legacy = strings("hidden").mapNotNull { name -> InputCommand.entries.firstOrNull { it.name == name }?.let(QUICK_BUTTON_IDS::get) }
+        return (strings("removed") + legacy).filter { id -> elements.any { it.id == id } }.toSet()
+    }
 
     private fun JSONArray.objects(limit: Int): List<JSONObject> {
         require(length() <= limit)

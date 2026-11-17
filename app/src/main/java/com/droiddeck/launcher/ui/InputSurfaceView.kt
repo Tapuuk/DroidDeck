@@ -135,7 +135,7 @@ class InputSurfaceView(
 
     fun updateStyle(style: InputSurfaceStyle) {
         if (surfaceStyle == style) return
-        val relayout = surfaceStyle.hidden != style.hidden
+        val relayout = surfaceStyle.removed != style.removed
         surfaceStyle = style
         if (relayout) updateCustomLayout(requestedLayout)
         customCanvas?.let { canvas -> for (i in 0 until canvas.childCount) styleElement(canvas.getChildAt(i)) }
