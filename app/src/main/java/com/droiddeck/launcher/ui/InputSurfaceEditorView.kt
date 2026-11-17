@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.HapticFeedbackConstants
@@ -64,9 +65,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
 
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val dashed = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = 2 * density; pathEffect = DashPathEffect(floatArrayOf(6 * density, 4 * density), 0f)
-    }
+    private val dashed = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2 * density }
+    private val dashOval = RectF()
     private val guide = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 1.5f * density; pathEffect = DashPathEffect(floatArrayOf(6 * density, 5 * density), 0f)
     }
@@ -280,7 +280,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         fill.color = withAlpha(GROUP_FILL, alpha)
         canvas.drawRoundRect(ring.left, ring.top, ring.right, ring.bottom, ring.corner, ring.corner, fill)
         dashed.color = withAlpha(SIGNAL, alpha)
-        canvas.drawRoundRect(ring.left, ring.top, ring.right, ring.bottom, ring.corner, ring.corner, dashed)
+        drawDashedOutline(canvas, ring, DASH_ON * density, DASH_OFF * density, dashed, dashOval)
         stroke.strokeWidth = 1.5f * density; stroke.color = withAlpha(MEMBER, alpha)
         for (i in 0 until memberCount) {
             val m = members[i]
@@ -366,7 +366,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
             canvas.scale(s, s, ghostRing.centerX, ghostRing.centerY)
             if (ghostGroup) {
                 dashed.color = withAlpha(SIGNAL, 1f - p)
-                canvas.drawRoundRect(ghostRing.left, ghostRing.top, ghostRing.right, ghostRing.bottom, ghostRing.corner, ghostRing.corner, dashed)
+                drawDashedOutline(canvas, ghostRing, DASH_ON * density, DASH_OFF * density, dashed, dashOval)
             } else drawRing(canvas, ghostRing, SIGNAL, HALO, 1f - p)
             canvas.restore()
         }
@@ -473,6 +473,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         private const val RING_OUT = 3f
         private const val MEMBER_OUT = 2f
         private const val GROUP_PAD = 10f
+        private const val DASH_ON = 6f
+        private const val DASH_OFF = 4f
         private const val OUTLINE_MS = 120f
         private const val HANDLE_DELAY_MS = 90f
         private const val HANDLE_STAGGER_MS = 30f

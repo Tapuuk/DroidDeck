@@ -1,10 +1,15 @@
 package com.droiddeck.launcher.ui
 
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import com.droiddeck.launcher.input.InputButtonShape
 import com.droiddeck.launcher.input.InputControl
 import com.droiddeck.launcher.input.InputElementKind
 import com.droiddeck.launcher.input.InputSurfaceElement
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -95,6 +100,40 @@ internal class OutlineShape {
 
         private fun classicLook(e: InputSurfaceElement) = (e.id == "legacy:${e.control.id}" || e.id == "builtin:keyboard") &&
             (e.buttonShape == InputButtonShape.CIRCLE || e.buttonShape == InputButtonShape.PILL)
+    }
+}
+
+/**
+ * Strokes [shape] as [on]-long dashes with [off] gaps, clockwise from the top edge, using only lines and arcs.
+ * A DashPathEffect on a large rounded rectangle is rasterised on the CPU and uploaded as a texture every time its size or scale changes.
+ */
+internal fun drawDashedOutline(canvas: Canvas, shape: OutlineShape, on: Float, off: Float, paint: Paint, oval: RectF) {
+    val period = on + off
+    if (on <= 0f || period <= 0f) return
+    val l = shape.left; val t = shape.top; val r = shape.right; val b = shape.bottom; val c = shape.corner
+    val across = max(0f, r - l - 2 * c); val down = max(0f, b - t - 2 * c); val arc = (PI / 2 * c).toFloat()
+    var start = 0f
+    for (piece in 0 until 8) {
+        val length = if (piece % 2 == 1) arc else if (piece % 4 == 0) across else down
+        if (length <= 0f) continue
+        var k = floor(start / period)
+        while (k * period < start + length) {
+            val from = max(start, k * period) - start; val to = min(start + length, k * period + on) - start
+            if (to > from) when (piece) {
+                0 -> canvas.drawLine(l + c + from, t, l + c + to, t, paint)
+                2 -> canvas.drawLine(r, t + c + from, r, t + c + to, paint)
+                4 -> canvas.drawLine(r - c - from, b, r - c - to, b, paint)
+                6 -> canvas.drawLine(l, b - c - from, l, b - c - to, paint)
+                else -> {
+                    val cx = if (piece == 1 || piece == 3) r - c else l + c; val cy = if (piece == 1 || piece == 7) t + c else b - c
+                    oval.set(cx - c, cy - c, cx + c, cy + c)
+                    canvas.drawArc(oval, (piece - 3) * 45f + Math.toDegrees((from / c).toDouble()).toFloat(),
+                        Math.toDegrees(((to - from) / c).toDouble()).toFloat(), false, paint)
+                }
+            }
+            k++
+        }
+        start += length
     }
 }
 

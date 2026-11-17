@@ -186,6 +186,41 @@ class InputSelectionOverlayTest {
         assertEquals(0, cleared.calls)
     }
 
+    @Test fun groupOutlineDashesWithoutAPathEffect() {
+        val shape = OutlineShape().set(0f, 0f, 300f, 200f, 40f)
+        val perimeter = 2 * (220f + 120f) + 2 * Math.PI.toFloat() * 40f
+        val dashes = DashCanvas()
+        drawDashedOutline(dashes, shape, 6f, 4f, Paint(), android.graphics.RectF())
+        assertEquals(perimeter * .6f, dashes.length, 6f)
+        assertTrue(dashes.arcs > 0)
+        assertFalse(dashes.pathEffect)
+
+        val view = editor(a, b)
+        view.selection = listOf("one", "two")
+        val group = DashCanvas()
+        view.drawOverlay(group)
+        assertTrue(group.length > 0f)
+        assertFalse(group.pathEffect)
+    }
+
+    private class DashCanvas : Canvas() {
+        var length = 0f
+        var arcs = 0
+        var pathEffect = false
+        override fun drawLine(startX: Float, startY: Float, stopX: Float, stopY: Float, paint: Paint) {
+            length += Math.hypot((stopX - startX).toDouble(), (stopY - startY).toDouble()).toFloat(); pathEffect = pathEffect || paint.pathEffect != null
+        }
+        override fun drawArc(oval: android.graphics.RectF, startAngle: Float, sweepAngle: Float, useCenter: Boolean, paint: Paint) {
+            arcs++; length += Math.toRadians(sweepAngle.toDouble()).toFloat() * oval.width() / 2f; pathEffect = pathEffect || paint.pathEffect != null
+        }
+        override fun drawRoundRect(left: Float, top: Float, right: Float, bottom: Float, rx: Float, ry: Float, paint: Paint) {
+            pathEffect = pathEffect || paint.pathEffect != null
+        }
+        override fun drawPath(path: Path, paint: Paint) { pathEffect = pathEffect || paint.pathEffect != null }
+        override fun drawCircle(cx: Float, cy: Float, radius: Float, paint: Paint) {}
+        override fun drawText(text: String, x: Float, y: Float, paint: Paint) {}
+    }
+
     private class RecordingCanvas : Canvas() {
         var calls = 0
         val outlines = mutableListOf<Pair<Float, Float>>()
