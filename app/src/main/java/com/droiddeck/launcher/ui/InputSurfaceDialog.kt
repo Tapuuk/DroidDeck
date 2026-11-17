@@ -143,9 +143,14 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
         elements = elements.filterNot { it.id in added }; actions = actions - added.toSet(); clicks = clicks - added.toSet()
         select(emptyList())
     }
+    val full get() = elements.size >= 64
+    val canAdd get() = !full || removed.any { id -> elements.any { it.id == id } }
+    private fun hidden(choice: InputAddChoice) = choice.stock.filter { id -> id in removed && elements.any { it.id == id } }
+    fun available(choice: InputAddChoice) = !full || hidden(choice).isNotEmpty()
     fun add(choice: InputAddChoice, aspect: Float) {
+        val hidden = hidden(choice)
+        if (hidden.isEmpty() && full) return
         checkpoint()
-        val hidden = choice.stock.filter { id -> id in removed && elements.any { it.id == id } }
         if (hidden.isNotEmpty()) {
             removed = removed - hidden.toSet()
             select(hidden)
@@ -325,7 +330,7 @@ private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
         confirmButton = {}, dismissButton = { PadTextButton(onClick = { draft.adding = false }) { Text(stringResource(R.string.common_close)) } },
         text = { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
             for (choice in remember(trackpads) { inputAddChoices(context, trackpads) }) PadTextButton(
-                onClick = { draft.add(choice, aspect); draft.adding = false; draft.toolsExpanded = false },
+                onClick = { draft.add(choice, aspect); draft.adding = false; draft.toolsExpanded = false }, enabled = draft.available(choice),
                 modifier = Modifier.fillMaxWidth().testTag("input-add-${choice.key}")) { Text(choice.name, Modifier.weight(1f)) }
         } })
 }
@@ -426,7 +431,7 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
     val context = LocalContext.current
     FlowRow(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SecondaryButton(stringResource(R.string.common_cancel), compact = true, onClick = onLeave)
-        SecondaryButton(stringResource(R.string.input_editor_add), enabled = draft.elements.size < 64, compact = true) { draft.adding = true }
+        SecondaryButton(stringResource(R.string.input_editor_add), enabled = draft.canAdd, compact = true) { draft.adding = true }
         SecondaryButton(stringResource(R.string.input_editor_undo), enabled = draft.history.isNotEmpty(), compact = true) { draft.undo() }
         SecondaryButton(stringResource(R.string.input_editor_redo), enabled = draft.redoable.isNotEmpty(), compact = true) { draft.redo() }
         if (draft.defaults != null) SecondaryButton(stringResource(R.string.input_reset_layout), enabled = draft.resettable, compact = true) { draft.resetLayout() }

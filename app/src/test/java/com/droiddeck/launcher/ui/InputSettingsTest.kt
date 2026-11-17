@@ -696,6 +696,23 @@ class InputSettingsTest {
         assertTrue(InputAction.Command(InputCommand.KEYBOARD).validFor(another))
     }
 
+    @Test fun aFullLayoutCanStillRestoreADeletedStockControl() {
+        val draft = overlayDraft()
+        while (draft.elements.size < 64) draft.addOne(choice("control-a"))
+        assertFalse(draft.canAdd)
+        assertFalse(draft.available(choice("control-guide")))
+        draft.select(listOf("legacy:guide")); draft.deleteSelection()
+        assertTrue(draft.canAdd)
+        assertTrue(draft.available(choice("control-guide")))
+        assertFalse(draft.available(choice("control-a")))
+        val full = draft.elements
+        draft.add(choice("control-a"), 16f / 9f)
+        assertEquals(full, draft.elements)
+        draft.add(choice("control-guide"), 16f / 9f)
+        assertTrue(draft.visible.any { it.id == "legacy:guide" })
+        assertEquals(64, draft.elements.size)
+    }
+
     @Test fun deletingAndUndoingBringsBackStockAndAddedControls() {
         val draft = overlayDraft()
         val added = draft.addOne(choice("control-x"))
