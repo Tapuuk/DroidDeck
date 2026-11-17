@@ -70,6 +70,7 @@ data class InputLibrary(
     val selected: String = InputProfiles.AUTO,
     val steam: String = InputProfile.GAME, val desktop: String = InputProfile.DESKTOP,
     val selections: Map<String, InputSelection> = emptyMap(),
+    val games: Map<String, String> = emptyMap(),
 ) {
     fun profile(id: String) = profiles.first { it.id == id }
     fun preset(id: String) = bindings.first { it.id == id }
@@ -77,8 +78,10 @@ data class InputLibrary(
         ?.let { id -> layouts.firstOrNull { it.id == id } }
     private fun mode(isDesktop: Boolean) = if (isDesktop) InputProfile.DESKTOP else InputProfile.GAME
     fun selection(isDesktop: Boolean) = selections[mode(isDesktop)] ?: InputSelection(selected)
-    fun activeId(isDesktop: Boolean): String {
-        val id = selection(isDesktop).profile
+    fun gameProfile(isDesktop: Boolean, game: String?) = game?.takeUnless { isDesktop }?.let(games::get)?.takeIf { id -> profiles.any { it.id == id } }
+    private fun selection(isDesktop: Boolean, game: String?) = gameProfile(isDesktop, game)?.let { InputSelection(it, profileSelected = true) } ?: selection(isDesktop)
+    fun activeId(isDesktop: Boolean, game: String? = null): String {
+        val id = selection(isDesktop, game).profile
         return if (id == InputProfiles.AUTO) { if (isDesktop) desktop else steam } else id
     }
     fun selectProfile(isDesktop: Boolean, id: String) = copy(selections = selections + (mode(isDesktop) to InputSelection(id, profileSelected = true)))
@@ -86,17 +89,28 @@ data class InputLibrary(
         val previous = selection(isDesktop)
         return copy(selections = selections + (mode(isDesktop) to previous.copy(parts = previous.parts + (role to bindingsId))))
     }
-    fun activePart(isDesktop: Boolean, role: InputRole): InputPart {
-        val binding = selection(isDesktop).parts[role]?.let(::preset)
-        return if (binding != null) InputPart(binding.id, binding.layoutId) else profile(activeId(isDesktop)).parts.getValue(role)
+    fun activePart(isDesktop: Boolean, role: InputRole, game: String? = null): InputPart {
+        val binding = selection(isDesktop, game).parts[role]?.let(::preset)
+        return if (binding != null) InputPart(binding.id, binding.layoutId) else profile(activeId(isDesktop, game)).parts.getValue(role)
     }
-    fun activeLayout(isDesktop: Boolean, role: InputRole) = activePart(isDesktop, role).layout?.let { id -> layouts.first { it.id == id } }
-    fun panelPart(isDesktop: Boolean, panel: String?): InputPart =
-        panel?.let { id -> bindings.firstOrNull { it.id == id } }?.let { InputPart(it.id, it.layoutId) } ?: activePart(isDesktop, InputRole.SECONDARY)
-    fun panelLayout(isDesktop: Boolean, panel: String?) = panelPart(isDesktop, panel).layout?.let { id -> layouts.firstOrNull { it.id == id } }
-    fun compileActive(isDesktop: Boolean, panel: String? = null): InputProfile = compileParts(activeId(isDesktop), InputRole.entries.associateWith {
-        preset(if (it == InputRole.SECONDARY) panelPart(isDesktop, panel).bindings else activePart(isDesktop, it).bindings)
+    fun activeLayout(isDesktop: Boolean, role: InputRole, game: String? = null) = activePart(isDesktop, role, game).layout?.let { id -> layouts.first { it.id == id } }
+    fun panelPart(isDesktop: Boolean, panel: String?, game: String? = null): InputPart =
+        panel?.let { id -> bindings.firstOrNull { it.id == id } }?.let { InputPart(it.id, it.layoutId) } ?: activePart(isDesktop, InputRole.SECONDARY, game)
+    fun panelLayout(isDesktop: Boolean, panel: String?, game: String? = null) = panelPart(isDesktop, panel, game).layout?.let { id -> layouts.firstOrNull { it.id == id } }
+    fun compileActive(isDesktop: Boolean, panel: String? = null, game: String? = null): InputProfile = compileParts(activeId(isDesktop, game), InputRole.entries.associateWith {
+        preset(if (it == InputRole.SECONDARY) panelPart(isDesktop, panel, game).bindings else activePart(isDesktop, it, game).bindings)
     })
+
+    fun withGameProfile(game: String, name: String): InputLibrary {
+        val id = gameProfileId(game)
+        if (profiles.any { it.id == id }) return copy(games = games + (game to id))
+        require(profiles.size < 64)
+        val current = profile(activeId(false))
+        var result = withProfile(SavedInputProfile(id, inputName(name), current.base, InputRole.entries.associateWith { activePart(false, it) }))
+        for (role in InputRole.entries) result = result.usePart(id, role, id, shared = false)
+        return result.copy(games = games + (game to id))
+    }
+    fun withoutGameProfile(game: String) = copy(games = games - game)
 
     fun saveSelection(isDesktop: Boolean, name: String, id: String = newInputId()): InputLibrary {
         val current = profile(activeId(isDesktop))
@@ -198,7 +212,8 @@ data class InputLibrary(
         require(id != InputProfile.GAME && id != InputProfile.DESKTOP)
         return copy(profiles = profiles.filterNot { it.id == id }, selected = selected.takeUnless { it == id } ?: InputProfiles.AUTO,
             steam = steam.takeUnless { it == id } ?: InputProfile.GAME, desktop = desktop.takeUnless { it == id } ?: InputProfile.DESKTOP,
-            selections = selections.mapValues { (_, selection) -> if (selection.profile == id) selection.copy(profile = InputProfiles.AUTO) else selection })
+            selections = selections.mapValues { (_, selection) -> if (selection.profile == id) selection.copy(profile = InputProfiles.AUTO) else selection },
+            games = games.filterValues { it != id })
     }
 
     fun removeLayout(id: String): InputLibrary {
@@ -267,6 +282,7 @@ data class InputLibrary(
                 it.action.validFor(InputControl.A) && (it.action !is InputAction.Native || it.action.target == null) })
         }
         require(selections.keys.all { it == InputProfile.GAME || it == InputProfile.DESKTOP })
+        require(games.size <= 64 && games.all { (game, id) -> game.isNotBlank() && game.length <= 64 && profiles.any { it.id == id } })
         for (selection in selections.values) {
             require(selection.profile == InputProfiles.AUTO || profiles.any { it.id == selection.profile })
             for ((role, id) in selection.parts) {
@@ -288,6 +304,8 @@ data class InputLibrary(
         return this
     }
 }
+
+fun gameProfileId(game: String) = "game:$game"
 
 internal fun inputName(value: String): String = value.trim().also { require(it.isNotEmpty() && it.length <= 80) }
 fun newInputId(): String = UUID.randomUUID().toString()

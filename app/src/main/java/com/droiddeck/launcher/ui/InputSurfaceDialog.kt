@@ -65,7 +65,9 @@ private class GamepadScaler(private val context: android.content.Context, privat
     private fun generator(scale: Float) = LegacyGamepadLayout(context, width, height, scale = scale)
     val ids = generator(1f).elements().map { it.id }.toSet()
     fun rescale(stored: List<InputSurfaceElement>, from: Float, to: Float) = generator(to).rescale(stored, generator(from))
-    fun reset(stored: List<InputSurfaceElement>) = generator(1f).regenerate(stored).associateBy { it.id }.let { placed -> stored.map { placed[it.id] ?: it } }
+    fun reset(stored: List<InputSurfaceElement>) = stock(stored).let { placed -> stored.map { placed[it.id] ?: it } }
+    fun stock(stored: List<InputSurfaceElement>) = generator(1f).regenerate(stored).associateBy { it.id }
+    val geometry by lazy { generator(1f).elements().associateBy { it.id } }
 }
 
 private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputBindings, val defaults: List<InputSurfaceElement>? = null,
@@ -73,7 +75,12 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     var elements by mutableStateOf(layout.elements)
     var actions by mutableStateOf(preset.elements)
     var clicks by mutableStateOf(preset.clicks)
-    var selected by mutableStateOf<String?>(null)
+    var selection by mutableStateOf<List<String>>(emptyList())
+        private set
+    val selected get() = selection.singleOrNull()
+    private var sizeBase by mutableStateOf<Map<String, InputSurfaceElement>?>(null)
+    private var sizeEdit: List<InputSurfaceElement>? = null
+    private var opacityEdit: List<InputSurfaceElement>? = null
     var toolsExpanded by mutableStateOf(false)
     var toolsX by mutableFloatStateOf(.02f)
     var toolsY by mutableFloatStateOf(.02f)
@@ -96,7 +103,12 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     val element get() = elements.firstOrNull { it.id == selected }
     val dirty get() = elements != layout.elements || actions != preset.elements || clicks != preset.clicks || layoutScale != layout.scale
     fun checkpoint() { history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale)).takeLast(40) }
-    fun undo() { history.lastOrNull()?.let { elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; history = history.dropLast(1) } }
+    fun undo() {
+        sizeEdit = null; opacityEdit = null
+        history.lastOrNull()?.let { elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; history = history.dropLast(1) }
+        val kept = selection.filter { id -> elements.any { it.id == id } }
+        select(if (kept.size > 1) elements.groupOf(kept.first()) else kept)
+    }
     fun scaleAll(percent: Int) {
         val base = scaleBase?.takeIf { it.second == elements } ?: Triple(elements, elements, if (rescales) layoutScale else 0f).also { checkpoint() }
         val factor = percent / 100f
@@ -106,6 +118,27 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
             gamepad.rescale(base.first, base.third, factor).map { others[it.id] ?: it }
         } else base.first.scaled(factor)
         scaleValue = percent; scaleBase = Triple(base.first, elements, base.third)
+    }
+    fun select(ids: List<String>) {
+        if (ids == selection) return
+        selection = ids; sizeBase = elements.filter { it.id in ids }.associateBy { it.id }; sizeEdit = null; opacityEdit = null
+    }
+    private val stockGeometry by lazy { defaults.orEmpty().associateBy { it.id } + gamepad?.geometry.orEmpty() }
+    private fun sizeReference() = stockGeometry.takeIf { stock -> selection.isNotEmpty() && selection.all { it in stock } } ?: sizeBase
+    val selectionSize get() = sizeReference()?.let { elements.sizePercent(selection, it).roundToInt() }
+    fun resizeSelection(percent: Int) {
+        val reference = sizeReference() ?: return
+        if (percent == selectionSize) return
+        if (sizeEdit != elements) checkpoint()
+        elements = elements.scaleSelection(selection, percent / elements.sizePercent(selection, reference))
+        sizeEdit = elements
+    }
+    val selectionOpacity get() = elements.firstOrNull { it.id in selection }?.opacity ?: 1f
+    fun setSelectionOpacity(percent: Int) {
+        if (elements.filter { it.id in selection }.all { (it.opacity * 100).roundToInt() == percent }) return
+        if (opacityEdit != elements) checkpoint()
+        elements = elements.map { if (it.id in selection) it.copy(opacity = percent / 100f) else it }
+        opacityEdit = elements
     }
     fun resetPositions() { positioned?.let { checkpoint(); elements = it; if (rescales) layoutScale = 1f } }
     fun action(e: InputSurfaceElement) = preset.copy(elements = actions).action(e)
@@ -218,7 +251,7 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
                 }
                 target == null -> SettingsPage(rememberMenuHost(), savedLayout.name, ::leave) {
                     Text(stringResource(R.string.input_display_unavailable))
-                    PrimaryButton(stringResource(R.string.input_editor_done)) { save() }
+                    PrimaryButton(stringResource(R.string.gesture_save_changes)) { save() }
                 }
                 remote -> SettingsPage(rememberMenuHost(), stringResource(R.string.input_editor_remote), ::leave,
                     lede = if (layoutUsers > 1) stringResource(R.string.input_editor_shared, layoutUsers) else savedLayout.name) {
@@ -238,7 +271,7 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
             val h = .3f
             val name = context.getString(kind.label()) + " " + (draft.elements.count { it.kind == kind } + 1)
             val element = InputSurfaceElement(kind.control, (1f - w) / 2, (1f - h) / 2, w, h, newInputId(), kind, name)
-            draft.elements = draft.elements + element; draft.selected = element.id
+            draft.elements = draft.elements + element; draft.select(listOf(element.id))
             draft.adding = false; draft.toolsExpanded = false }) { Text(stringResource(kind.label())) }
     } })
     if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text(stringResource(R.string.input_editor_discard)) },
@@ -253,11 +286,14 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
     AndroidView(factory = { InputSurfaceEditorView(it) }, modifier = Modifier.fillMaxSize().testTag("input-layout-canvas"),
         update = { view ->
             view.setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else android.graphics.Color.rgb(10, 11, 13))
-            view.style = draft.layout.style.copy(hidden = emptySet()); view.elements = draft.elements; view.selected = draft.selected; view.snap = draft.snap
+            view.style = draft.layout.style.copy(hidden = emptySet()); view.elements = draft.elements; view.selection = draft.selection; view.snap = draft.snap
             view.isEnabled = !draft.properties && !draft.adding
-            view.onSelect = { if (!draft.properties) draft.selected = it }
+            view.onSelect = { if (!draft.properties) draft.select(it) }
             view.onBeginEdit = draft::checkpoint
-            view.onChange = { e -> if (!draft.properties) draft.elements = draft.elements.map { if (it.id == e.id) e else it } }
+            view.onChange = { changed ->
+                val byId = changed.associateBy { it.id }
+                if (!draft.properties) draft.elements = draft.elements.map { byId[it.id] ?: it }
+            }
 
         })
 }
@@ -324,7 +360,7 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
             Checkbox(draft.snap, { draft.snap = it; ControllerPrefs.setSnap(context, it) })
             Text(stringResource(R.string.ctrl_editor_snap))
         }
-        PrimaryButton(stringResource(R.string.input_editor_done), compact = true, onClick = onSave)
+        PrimaryButton(stringResource(R.string.gesture_save_changes), compact = true, onClick = onSave)
     }
     if (draft.elements.isNotEmpty()) SliderRow(stringResource(R.string.ctrl_size), null, draft.scale, 80..125, step = 5,
         format = { "$it%" }, modifier = Modifier.testTag("input-editor-scale")) { draft.scaleAll(it) }
@@ -334,17 +370,46 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
 @Composable
 private fun SurfaceSelection(draft: SurfaceDraft) {
     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        draft.element?.let { e ->
-            Text(e.name, style = MaterialTheme.typography.titleMedium)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                PrimaryButton(stringResource(R.string.input_properties), compact = true) { draft.clickProperties = false; draft.properties = true }
-                if (e.hasClick) SecondaryButton(stringResource(R.string.input_click_properties), compact = true) { draft.clickProperties = true; draft.properties = true }
-                SecondaryButton(stringResource(R.string.input_remove_element), compact = true) {
-                    draft.checkpoint(); draft.elements = draft.elements.filterNot { it.id == e.id }; draft.actions = draft.actions - e.id; draft.clicks = draft.clicks - e.id; draft.selected = null
+        val group = draft.elements.selectedGroup(draft.selection)
+        val e = draft.element
+        when {
+            group != null -> {
+                Text(stringResource(group.label()), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.input_group_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            e != null -> {
+                Text(e.name, style = MaterialTheme.typography.titleMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PrimaryButton(stringResource(R.string.input_properties), compact = true) { draft.clickProperties = false; draft.properties = true }
+                    if (e.hasClick) SecondaryButton(stringResource(R.string.input_click_properties), compact = true) { draft.clickProperties = true; draft.properties = true }
+                    SecondaryButton(stringResource(R.string.input_remove_element), compact = true) {
+                        draft.checkpoint(); draft.elements = draft.elements.filterNot { it.id == e.id }; draft.actions = draft.actions - e.id; draft.clicks = draft.clicks - e.id; draft.select(emptyList())
+                    }
                 }
             }
-        } ?: Text(stringResource(R.string.input_editor_hint))
+            else -> Text(stringResource(R.string.input_editor_hint))
+        }
+        if (group != null || e != null) {
+            draft.selectionSize?.let { size ->
+                val range = minOf(SELECTION_SIZES.first, size / 5 * 5)..maxOf(SELECTION_SIZES.last, (size + 4) / 5 * 5)
+                SliderRow(stringResource(R.string.input_selection_size), null, size, range, step = 5,
+                    format = { "$it%" }, modifier = Modifier.testTag("input-selection-size")) { draft.resizeSelection(it) }
+            }
+            SliderRow(stringResource(R.string.ctrl_opacity), null, (draft.selectionOpacity * 100).roundToInt().coerceIn(20, 100), 20..100, step = 5,
+                format = { "$it%" }, modifier = Modifier.testTag("input-selection-opacity")) { draft.setSelectionOpacity(it) }
+        }
     }
+}
+
+private val SELECTION_SIZES = 40..250
+
+private fun InputControlGroup.label() = when (this) {
+    InputControlGroup.DPAD -> R.string.input_group_dpad
+    InputControlGroup.FACE -> R.string.input_group_face
+    InputControlGroup.LEFT_SHOULDER -> R.string.input_group_left_shoulder
+    InputControlGroup.RIGHT_SHOULDER -> R.string.input_group_right_shoulder
+    InputControlGroup.LEFT_STICK -> R.string.input_group_left_stick
+    InputControlGroup.RIGHT_STICK -> R.string.input_group_right_stick
 }
 
 private fun InputElementKind.label() = when (this) {

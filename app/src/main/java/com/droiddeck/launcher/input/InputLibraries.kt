@@ -332,7 +332,8 @@ object InputLibraries {
             selection.parts.forEach { (role, id) -> parts.put(role.name, id) }
             selections.put(mode, JSONObject().put("profile", selection.profile).put("parts", parts).put("profileSelected", selection.profileSelected))
         }
-        return JSONObject().put("selections", selections).put("version", VERSION).put("selected", library.selected).put("steam", library.steam).put("desktop", library.desktop)
+        val games = JSONObject(); library.games.forEach { (game, id) -> games.put(game, id) }
+        return JSONObject().put("selections", selections).put("games", games).put("version", VERSION).put("selected", library.selected).put("steam", library.steam).put("desktop", library.desktop)
             .put("profiles", profiles).put("layouts", layouts).put("bindings", bindings).toString()
     }
 
@@ -378,7 +379,11 @@ object InputLibraries {
                     value.optBoolean("profileSelected", profile != InputProfiles.AUTO || parts.length() == 0))
             }
         }.orEmpty()
-        InputLibrary(profiles, layouts, bindings, doc.getString("selected"), doc.getString("steam"), doc.getString("desktop"), selections).validate()
+        val games = doc.optJSONObject("games")?.let { saved ->
+            saved.keys().asSequence().take(64).associateWith { saved.optString(it) }
+                .filter { (game, id) -> game.isNotBlank() && game.length <= 64 && profiles.any { it.id == id } }
+        }.orEmpty()
+        InputLibrary(profiles, layouts, bindings, doc.getString("selected"), doc.getString("steam"), doc.getString("desktop"), selections, games).validate()
     }.getOrNull()
 
     private fun JSONArray.objects(limit: Int): List<JSONObject> {

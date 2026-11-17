@@ -139,7 +139,7 @@ class InputSettingsTest {
         compose.onNodeWithText(context.getString(R.string.input_element_button), substring = false).performClick()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_properties)).assertExists()
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performClick()
         compose.runOnIdle {
             assertTrue(changed)
             val updated = InputLibraries.read(context)
@@ -202,7 +202,7 @@ class InputSettingsTest {
         compose.onNodeWithText(context.getString(R.string.input_hide_tools)).performClick()
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).assertDoesNotExist()
         compose.onNodeWithTag("input-editor-tools").performClick()
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performClick()
         compose.runOnIdle { assertEquals(layout.elements.size + 1, InputLibraries.read(context).layout("game", InputRole.SECONDARY)!!.elements.size) }
     }
 
@@ -370,7 +370,7 @@ class InputSettingsTest {
             compose.onNodeWithTag("input-action-save").assertIsDisplayed()
             compose.onNodeWithTag("input-action-save").performClick()
             compose.onNodeWithText(context.getString(R.string.input_display_unavailable)).assertExists()
-            compose.onNodeWithText(context.getString(R.string.input_editor_done)).performScrollTo().performClick()
+            compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
             compose.runOnIdle {
                 assertFalse(open.value)
                 assertEquals(InputAction.Disabled, InputProfiles.read(context, "game").elementAction(InputRole.SECONDARY, "legacy:left-pad", InputControl.LEFT_PAD))
@@ -423,13 +423,13 @@ class InputSettingsTest {
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_reset_positions)).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("input-editor-scale").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(80f) }
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performScrollTo().performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         val scaled = InputLibraries.read(context).layouts.first { it.id == layout.id }
         assertEquals(layout.elements.scaled(.8f), scaled.elements)
         compose.runOnIdle { round.value = 1 }
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithText(context.getString(R.string.input_reset_positions)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performScrollTo().performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle { assertEquals(layout.elements, InputLibraries.read(context).layouts.first { it.id == layout.id }.elements) }
     }
 
@@ -513,7 +513,7 @@ class InputSettingsTest {
         compose.onNodeWithText(context.getString(R.string.input_editor_undo)).performScrollTo().performClick()
         slider.assert(SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription, "100%"))
         slider.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(125f) }
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performScrollTo().performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle {
             val saved = InputLibraries.read(context).layouts.first { it.id == layout.id }
             assertEquals(1.25f, saved.scale)
@@ -536,7 +536,7 @@ class InputSettingsTest {
             layoutId = moved.id, bindingsId = library.profile("game").binding(InputRole.PRIMARY)) } }
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithTag("input-editor-scale").performScrollTo().performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(125f) }
-        compose.onNodeWithText(context.getString(R.string.input_editor_done)).performScrollTo().performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
         compose.runOnIdle {
             val saved = InputLibraries.read(context).layouts.first { it.id == moved.id }
             assertEquals(1.25f, saved.scale)

@@ -197,6 +197,9 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback, com.droidde
     private var inputRouter: InputRouter? = null
     private var physicalInputBindings: com.droiddeck.launcher.input.PhysicalInputBindings? = null
     private var inputSettingsOpen by mutableStateOf(false)
+    private var inputEditorOnly by mutableStateOf(false)
+    private var gameControls by mutableStateOf<Boolean?>(null)
+    private var gameProfile by mutableStateOf<String?>(null)
     @Volatile private var inputUsesLocalActions = false
     private var inputUsesPointer = false
     private var inputProfile = InputProfile.defaults(InputProfile.GAME)
@@ -1204,8 +1207,10 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback, com.droidde
                     }
                     if (nextGame != gestureGame) {
                         if (nextGame != null) gameStarts++
+                        val previousInputGame = inputGame()
                         gestureGame = nextGame
                         refreshGestureConfig()
+                        if (inputGame() != previousInputGame) refreshInputProfile()
                     }
                     if (
                         SessionState.mode == SessionService.MODE_STEAM &&
@@ -1227,7 +1232,8 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback, com.droidde
                     }
                 }
                 com.droiddeck.launcher.ui.GestureFeedback(recognizedGesture)
-                if (inputSettingsOpen) com.droiddeck.launcher.ui.InputSettingsDialog(
+                if (inputSettingsOpen && inputEditorOnly) OnScreenControlsEditor()
+                else if (inputSettingsOpen) com.droiddeck.launcher.ui.InputSettingsDialog(
                     onBack = { inputSettingsOpen = false; secondScreenPresentation?.refreshControls() },
                     onChanged = {
                         controllerSettings = ControllerPrefs.read(this@SessionActivity)
@@ -1703,7 +1709,11 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback, com.droidde
                 SessionService.suspendPolicyChanged(this@SessionActivity)
             },
             onTouch = { v -> SessionPrefs.setTouchMode(this@SessionActivity, v); readPrefs() },
-            onInputSettings = { releasePads(); drawerOpen = false; inputSettingsOpen = true },
+            onInputSettings = { releasePads(); drawerOpen = false; inputEditorOnly = false; inputSettingsOpen = true },
+            onEditOnScreen = if (primaryInputLayout?.editable == true) ({ releasePads(); drawerOpen = false; inputEditorOnly = true; inputSettingsOpen = true }) else null,
+            gameControls = gameControls,
+            gameProfile = gameProfile,
+            onGameControls = { on -> setGameControls(on) },
             onInputSelection = { releasePads(); refreshInputProfile() },
             onGestureSettings = { drawerOpen = false; gestureSettingsOpen = true },
             touchActive = drawerTouchMode(),
@@ -4274,15 +4284,51 @@ class SessionActivity : ComponentActivity(), SurfaceHolder.Callback, com.droidde
         if (started && displayId !in inputWindowDisplays && secondScreenMode != SecondScreenMode.NONE && secondScreenPresentation == null) showSecondScreen(secondScreenMode)
     }
 
+    private fun inputGame() = gestureGame.takeIf { SessionState.mode == SessionService.MODE_STEAM && it?.toLongOrNull() != null }
+
+    private fun setGameControls(on: Boolean) {
+        val game = inputGame() ?: return
+        val name = (frameGenActiveGameName?.trim()?.takeIf { it.isNotEmpty() && frameGenActiveGameId?.toString() == game }
+            ?: getString(R.string.input_game_profile_name, game)).take(80)
+        runCatching {
+            com.droiddeck.launcher.input.InputLibraries.update(this) { if (on) it.withGameProfile(game, name) else it.withoutGameProfile(game) }
+        }.onFailure { android.widget.Toast.makeText(this, R.string.input_game_controls_failed, android.widget.Toast.LENGTH_LONG).show() }
+        refreshInputProfile()
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun OnScreenControlsEditor() {
+        val target = androidx.compose.runtime.remember {
+            val library = com.droiddeck.launcher.input.InputLibraries.read(this)
+            val desktop = loadingMode() == SessionService.MODE_DESKTOP
+            val game = inputGame()
+            library.activeLayout(desktop, InputRole.PRIMARY, game)?.takeIf { it.editable }?.let { layout ->
+                Triple(library.activeId(desktop, game), layout.id, library.activePart(desktop, InputRole.PRIMARY, game).bindings)
+            }
+        }
+        if (target == null) {
+            androidx.compose.runtime.LaunchedEffect(Unit) { inputSettingsOpen = false; inputEditorOnly = false }
+            return
+        }
+        com.droiddeck.launcher.ui.InputSurfaceDialog(target.first,
+            onDismiss = { inputSettingsOpen = false; inputEditorOnly = false; secondScreenPresentation?.refreshControls() },
+            onChanged = { onScreenControls?.reload(); refreshInputProfile(); refreshControls() },
+            role = InputRole.PRIMARY, layoutId = target.second, bindingsId = target.third)
+    }
+
     private fun refreshInputProfile() {
         val library = com.droiddeck.launcher.input.InputLibraries.read(this)
         val desktop = loadingMode() == SessionService.MODE_DESKTOP
-        inputProfile = library.compileActive(desktop, secondScreenMode.panel(this))
-        primaryInputLayout = library.activeLayout(desktop, InputRole.PRIMARY)
+        val game = inputGame()
+        SessionState.inputGame = game
+        gameProfile = library.gameProfile(desktop, game)
+        gameControls = game?.let { gameProfile != null }
+        inputProfile = library.compileActive(desktop, secondScreenMode.panel(this), game)
+        primaryInputLayout = library.activeLayout(desktop, InputRole.PRIMARY, game)
         adaptiveSticks = primaryInputLayout?.adaptiveSticks
         quickButtons = primaryInputLayout?.takeIf { it.editable }?.let { l -> l.quickButtons.associateWith { it !in l.style.hidden } }.orEmpty()
-        secondaryInputLayout = library.panelLayout(desktop, secondScreenMode.panel(this))
-        deckPanelLayouts = com.droiddeck.launcher.input.DeckPanel.entries.associateWith { library.panelLayout(desktop, it.bindings) }
+        secondaryInputLayout = library.panelLayout(desktop, secondScreenMode.panel(this), game)
+        deckPanelLayouts = com.droiddeck.launcher.input.DeckPanel.entries.associateWith { library.panelLayout(desktop, it.bindings, game) }
         inputUsesLocalActions = InputControl.padControls.any { inputProfile.action(InputRole.PHYSICAL, it) !is InputAction.Native }
         inputUsesPointer = inputProfile.bindings.values.any { bindings ->
             bindings.values.any { it is InputAction.Pointer || it is InputAction.MouseButton || it is InputAction.Scroll }

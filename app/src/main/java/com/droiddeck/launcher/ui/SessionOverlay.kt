@@ -307,6 +307,10 @@ class DrawerActions(
     val onDirectCursor: (Boolean) -> Unit = {},
     val onTouch: (String) -> Unit,
     val onInputSettings: () -> Unit = {},
+    val onEditOnScreen: (() -> Unit)? = null,
+    val gameControls: Boolean? = null,
+    val gameProfile: String? = null,
+    val onGameControls: (Boolean) -> Unit = {},
     val onInputSelection: (com.droiddeck.launcher.input.InputRole?) -> Unit = {},
     val onGestureSettings: () -> Unit = {},
     val touchActive: String = "",
@@ -649,7 +653,15 @@ internal fun SessionDrawer(open: Boolean, requestedPage: SessionDrawerPage, cont
                         }
                         SessionDrawerPage.CONTROLLER -> {
                             SettingsGroup(stringResource(R.string.drawer_page_controller)) {
-                                InputQuickSettings(host, desktop = a.desktop, onChanged = a.onInputSelection, onEdit = a.onInputSettings) { key -> focus.track(page, key) }
+                                a.onEditOnScreen?.let { edit ->
+                                    ActionRow(stringResource(R.string.input_edit_on_screen), stringResource(R.string.input_edit_on_screen_hint),
+                                        stringResource(R.string.ctrl_edit), edit, modifier = focus.track(page, "edit-on-screen"))
+                                }
+                                a.gameControls?.let { on ->
+                                    ToggleRow(host, "game-controls", stringResource(R.string.input_game_controls), stringResource(R.string.input_game_controls_hint), on,
+                                        chipModifier = focus.track(page, "game-controls"), onChange = a.onGameControls)
+                                }
+                                InputQuickSettings(host, desktop = a.desktop, onChanged = a.onInputSelection, onEdit = a.onInputSettings, gameProfile = a.gameProfile) { key -> focus.track(page, key) }
                             }
                             SettingsGroup(stringResource(R.string.input_device_settings)) {
                                 a.padType?.let { type ->

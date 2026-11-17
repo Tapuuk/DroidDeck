@@ -34,4 +34,19 @@
     <string name="input_read_timing">Read measurements</string>
     <string name="input_latency_hint">Measures Android dispatch through publication to the existing input transport. This excludes Bluetooth arrival, guest polling, rendering and display latency. Recording is off by default.</string>
     <string name="input_normal_binding">Use normal input binding</string>
+    <string name="input_group_dpad">D-pad</string>
+    <string name="input_group_face">Face buttons</string>
+    <string name="input_group_left_shoulder">Left bumper and trigger</string>
+    <string name="input_group_right_shoulder">Right bumper and trigger</string>
+    <string name="input_group_left_stick">Left stick</string>
+    <string name="input_group_right_stick">Right stick</string>
+    <string name="input_group_hint">Drag to move the whole group, or drag a corner to resize it. Tap a button in the group again to change only that button.</string>
+    <string name="input_selection_size">Size</string>
+    <string name="input_edit_on_screen">On-screen controls</string>
+    <string name="input_edit_on_screen_hint">Move and resize buttons, sticks and groups. Changes apply when you press Save.</string>
+    <string name="input_game_controls">Controls for this game only</string>
+    <string name="input_game_controls_hint">Gives this game its own copy of the controls. Turn it off to go back to the shared ones. The copy is kept for next time.</string>
+    <string name="input_game_profile_name">Game %1$s</string>
+    <string name="input_game_controls_active">This game uses its own controls: %1$s</string>
+    <string name="input_game_controls_failed">Couldn\'t give this game its own controls. Delete a profile you no longer use in Input profiles and try again.</string>
 </resources>
