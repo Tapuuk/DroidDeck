@@ -635,7 +635,7 @@ class InputSettingsTest {
         val draft = overlayDraft()
         val cases = listOf(
             Triple(choice("control-a"), InputAction.Native(InputControl.A), "A"),
-            Triple(choice("control-lt"), InputAction.Native(InputControl.LT), InputControl.LT.label),
+            Triple(choice("control-lt"), InputAction.Native(InputControl.LT), "LT"),
             Triple(choice("control-ls"), InputAction.Native(InputControl.LS), InputControl.LS.label),
             Triple(choice("control-dpad"), InputAction.Native(), context.getString(R.string.input_group_dpad)),
             Triple(choice("control-guide"), InputAction.Native(InputControl.GUIDE), InputControl.GUIDE.label),

@@ -147,6 +147,7 @@ class InputEditorPanelTest {
         compose.onNodeWithTag("input-add-panel").assertIsDisplayed()
         compose.onNodeWithText(context.getString(R.string.input_add_element)).assertIsDisplayed()
         for (choice in inputAddChoices(context, false)) compose.onNodeWithTag("input-add-${choice.key}").assertExists().assertHasClickAction()
+        for (name in listOf("LB", "RB", "LT", "RT")) compose.onNodeWithText(name, useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("input-add-close").performClick()
         compose.onNodeWithTag("input-add-panel").assertDoesNotExist()
         compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()

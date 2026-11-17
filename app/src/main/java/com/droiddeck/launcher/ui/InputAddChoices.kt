@@ -78,7 +78,10 @@ private val CONTROLS = listOf(InputControl.LS, InputControl.RS, InputControl.LB,
     InputControl.L3, InputControl.R3, InputControl.L4, InputControl.R4, InputControl.L5, InputControl.R5, InputControl.SELECT, InputControl.START, InputControl.GUIDE, InputControl.QAM)
 private val DPAD_IDS = listOf(InputControl.UP, InputControl.RIGHT, InputControl.DOWN, InputControl.LEFT).map { "legacy:${it.id}" }
 
-private fun controlChoice(control: InputControl) = InputAddChoice("control-${control.id}", control.label, InputElementKind.from(control), control,
+private val SHOULDERS = setOf(InputControl.LB, InputControl.RB, InputControl.LT, InputControl.RT)
+
+private fun controlChoice(control: InputControl) = InputAddChoice("control-${control.id}",
+    if (control in SHOULDERS) control.id.uppercase() else control.label, InputElementKind.from(control), control,
     InputAction.Native(control), listOf("legacy:${control.id}"))
 
 internal fun inputAddChoices(context: Context, trackpads: Boolean): List<InputAddChoice> =
