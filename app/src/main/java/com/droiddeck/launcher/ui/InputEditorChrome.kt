@@ -120,7 +120,7 @@ internal fun Modifier.editorGlass(shape: Shape, opacity: Float = 0.78f): Modifie
 
 /** Press feedback: .94 in 70ms, back with a 160ms pop. */
 @Composable
-private fun pressScale(source: MutableInteractionSource): Float {
+internal fun pressScale(source: MutableInteractionSource): Float {
     val pressed by source.collectIsPressedAsState()
     return animateFloatAsState(if (pressed) 0.94f else 1f, if (pressed) Motion.tw(70) else Motion.tw(160, easing = EditorMotion.Pop), label = "press").value
 }

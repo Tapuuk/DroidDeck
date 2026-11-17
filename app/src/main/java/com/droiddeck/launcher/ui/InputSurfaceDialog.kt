@@ -23,7 +23,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -376,13 +375,9 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
 private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
     val context = LocalContext.current
     val trackpads = draft.layout.supports(InputRole.SECONDARY) || draft.elements.any { it.kind == InputElementKind.TRACKPAD }
-    AlertDialog(onDismissRequest = { draft.adding = false }, title = { Text(stringResource(R.string.input_add_element)) },
-        confirmButton = {}, dismissButton = { PadTextButton(onClick = { draft.adding = false }) { Text(stringResource(R.string.common_close)) } },
-        text = { Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-            for (choice in remember(trackpads) { inputAddChoices(context, trackpads) }) PadTextButton(
-                onClick = { draft.add(choice, aspect); draft.adding = false; draft.toolsExpanded = false }, enabled = draft.available(choice),
-                modifier = Modifier.fillMaxWidth().testTag("input-add-${choice.key}")) { Text(choice.name, Modifier.weight(1f)) }
-        } })
+    val choices = remember(trackpads) { inputAddChoices(context, trackpads) }
+    AddControlPanel(choices, draft::available, draft.layout.style, onAdd = { draft.add(it, aspect); draft.adding = false; draft.toolsExpanded = false },
+        onClose = { draft.adding = false })
 }
 
 @Composable

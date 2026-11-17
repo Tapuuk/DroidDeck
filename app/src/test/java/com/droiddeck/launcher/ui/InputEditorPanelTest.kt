@@ -140,6 +140,28 @@ class InputEditorPanelTest {
         assertEquals(1, dismissed)
     }
 
+    @Test fun theAddPanelShowsATileForEveryControlAndClosesWithCloseOrBack() {
+        open()
+        menu()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
+        compose.onNodeWithTag("input-add-panel").assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.input_add_element)).assertIsDisplayed()
+        for (choice in inputAddChoices(context, false)) compose.onNodeWithTag("input-add-${choice.key}").assertExists().assertHasClickAction()
+        compose.onNodeWithTag("input-add-close").performClick()
+        compose.onNodeWithTag("input-add-panel").assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
+        compose.runOnIdle {
+            val window = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!
+            for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                window.callback.dispatchKeyEvent(android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_BACK))
+        }
+        compose.onNodeWithTag("input-add-panel").assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
+        compose.onNodeWithTag("input-add-control-a").performClick()
+        compose.onNodeWithTag("input-add-panel").assertDoesNotExist()
+        compose.onNodeWithTag("input-selection-pill").assertExists()
+    }
+
     @Test fun deletingShowsAToastWhoseUndoBringsTheControlBack() {
         val layout = open()
         val start = layout.element("legacy:start")
