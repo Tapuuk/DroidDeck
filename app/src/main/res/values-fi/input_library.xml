@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Poistetaanko %1$s? Sitä käyttävät tilat palaavat sisäänrakennettuun oletusprofiiliin. Tallennetut asettelut ja jaetut asetukset säilyvät.</string>
     <string name="input_screen_visibility">Näkyvyys</string>
     <string name="input_visibility_shared">Koskee kaikkia profiileja. Auto näyttää päänäytön ohjaimet, kun pelitilassa ei ole ohjainta kytkettynä.</string>
-    <string name="input_edit_layout">Muokkaa näytöllä</string>
+    <string name="input_edit_layout">Muokkaa asettelua</string>
     <string name="input_saved_layouts">Tallennetut asettelut…</string>
     <string name="input_saved_layouts_hint">Valitse asettelu tai luo oma</string>
     <string name="input_second_screen_enable">Valitse Profiilin ohjaimet toissijaisen näytön istuntovalikosta. Ohjainvalikon Profiili- ja Toissijainen näyttö -valinnat määräävät näytettävät ohjaimet.</string>

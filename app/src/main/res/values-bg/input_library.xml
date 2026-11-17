@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Да се изтрие ли %1$s? Режимите, които го използват, ще се върнат към вградените настройки по подразбиране. Запазените оформления и споделените настройки остават налични.</string>
     <string name="input_screen_visibility">Видимост</string>
     <string name="input_visibility_shared">Важи за всички профили. Auto показва управлението на основния екран, когато в игрови режим няма свързан контролер.</string>
-    <string name="input_edit_layout">Редактиране на екрана</string>
+    <string name="input_edit_layout">Редактиране на оформлението</string>
     <string name="input_saved_layouts">Запазени оформления…</string>
     <string name="input_saved_layouts_hint">Изберете оформление или създайте свое</string>
     <string name="input_second_screen_enable">Изберете Управление на профила в менюто на сесията на втория екран. Изборите Профил и Втори екран в менюто на контролера определят кое управление да се показва.</string>

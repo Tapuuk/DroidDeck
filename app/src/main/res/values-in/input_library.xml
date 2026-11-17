@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Hapus %1$s? Mode yang memakainya akan kembali ke profil bawaan bawaannya. Tata letak tersimpan dan setelan bersama tetap tersedia.</string>
     <string name="input_screen_visibility">Visibilitas</string>
     <string name="input_visibility_shared">Berlaku untuk semua profil. Auto menampilkan kontrol layar utama saat tidak ada pengontrol terhubung di mode game.</string>
-    <string name="input_edit_layout">Edit di layar</string>
+    <string name="input_edit_layout">Edit tata letak</string>
     <string name="input_saved_layouts">Tata letak tersimpan…</string>
     <string name="input_saved_layouts_hint">Pilih tata letak atau buat sendiri</string>
     <string name="input_second_screen_enable">Pilih Kontrol profil di menu sesi layar sekunder. Pemilih Profil dan Layar sekunder di menu pengontrol menentukan kontrol yang ditampilkan.</string>

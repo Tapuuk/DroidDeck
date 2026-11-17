@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Törli: %1$s? A használó módok visszatérnek beépített alapértelmezett profiljukhoz. A mentett elrendezések és megosztott beállítások elérhetők maradnak.</string>
     <string name="input_screen_visibility">Láthatóság</string>
     <string name="input_visibility_shared">Minden profilra érvényes. Az Auto a fő képernyő vezérlőit mutatja, ha játékmódban nincs vezérlő csatlakoztatva.</string>
-    <string name="input_edit_layout">Szerkesztés a képernyőn</string>
+    <string name="input_edit_layout">Elrendezés szerkesztése</string>
     <string name="input_saved_layouts">Mentett elrendezések…</string>
     <string name="input_saved_layouts_hint">Válasszon elrendezést, vagy hozzon létre sajátot</string>
     <string name="input_second_screen_enable">Válassza a Profil vezérlőit a másodlagos képernyő munkamenet-menüjében. A vezérlő menüjében a Profil és a Másodlagos képernyő választó dönti el, mely vezérlők jelenjenek meg.</string>

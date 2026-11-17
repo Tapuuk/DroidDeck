@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">%1$s हटाएँ? इसका उपयोग करने वाले मोड अपने अंतर्निहित डिफ़ॉल्ट प्रोफ़ाइल पर लौटेंगे। सहेजे गए लेआउट और साझा सेटिंग्स उपलब्ध रहेंगी।</string>
     <string name="input_screen_visibility">दृश्यता</string>
     <string name="input_visibility_shared">सभी प्रोफ़ाइल पर लागू। गेम मोड में कंट्रोलर कनेक्ट न होने पर Auto मुख्य स्क्रीन के नियंत्रण दिखाता है।</string>
-    <string name="input_edit_layout">स्क्रीन पर संपादित करें</string>
+    <string name="input_edit_layout">लेआउट संपादित करें</string>
     <string name="input_saved_layouts">सहेजे गए लेआउट…</string>
     <string name="input_saved_layouts_hint">लेआउट चुनें या अपना बनाएँ</string>
     <string name="input_second_screen_enable">दूसरी स्क्रीन के सत्र मेनू में प्रोफ़ाइल नियंत्रण चुनें। कंट्रोलर मेनू में प्रोफ़ाइल और दूसरी स्क्रीन चयनकर्ता तय करते हैं कि कौन से नियंत्रण दिखें।</string>

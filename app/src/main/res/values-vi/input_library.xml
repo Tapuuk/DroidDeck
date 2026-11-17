@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Xóa %1$s? Các chế độ đang dùng sẽ quay về hồ sơ mặc định tích hợp. Bố cục đã lưu và cài đặt chia sẻ vẫn khả dụng.</string>
     <string name="input_screen_visibility">Hiển thị</string>
     <string name="input_visibility_shared">Áp dụng cho mọi hồ sơ. Auto hiện điều khiển màn hình chính khi không có tay cầm kết nối ở chế độ chơi game.</string>
-    <string name="input_edit_layout">Chỉnh sửa trên màn hình</string>
+    <string name="input_edit_layout">Chỉnh sửa bố cục</string>
     <string name="input_saved_layouts">Bố cục đã lưu…</string>
     <string name="input_saved_layouts_hint">Chọn một bố cục hoặc tạo bố cục riêng</string>
     <string name="input_second_screen_enable">Chọn Điều khiển hồ sơ trong menu phiên của màn hình phụ. Bộ chọn Hồ sơ và Màn hình phụ trong menu tay cầm quyết định điều khiển nào được hiển thị.</string>

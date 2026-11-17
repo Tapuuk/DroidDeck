@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Eliminar %1$s? Os modos que o usam voltam ao perfil predefinido integrado. As disposições guardadas e as definições partilhadas continuam disponíveis.</string>
     <string name="input_screen_visibility">Visibilidade</string>
     <string name="input_visibility_shared">Aplica-se a todos os perfis. Auto mostra os controlos do ecrã principal quando não há comando ligado no modo de jogo.</string>
-    <string name="input_edit_layout">Editar no ecrã</string>
+    <string name="input_edit_layout">Editar disposição</string>
     <string name="input_saved_layouts">Disposições guardadas…</string>
     <string name="input_saved_layouts_hint">Escolha uma disposição ou crie a sua</string>
     <string name="input_second_screen_enable">Escolha Controlos do perfil no menu de sessão do ecrã secundário. Os seletores Perfil e Ecrã secundário no menu do comando escolhem os controlos a mostrar.</string>

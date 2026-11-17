@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">%1$s löschen? Modi, die es verwenden, kehren zu ihrem integrierten Standardprofil zurück. Gespeicherte Layouts und geteilte Einstellungen bleiben verfügbar.</string>
     <string name="input_screen_visibility">Sichtbarkeit</string>
     <string name="input_visibility_shared">Gilt für alle Profile. Auto zeigt die Hauptbildschirm-Steuerung, wenn im Spielmodus kein Controller angeschlossen ist.</string>
-    <string name="input_edit_layout">Auf dem Bildschirm bearbeiten</string>
+    <string name="input_edit_layout">Layout bearbeiten</string>
     <string name="input_saved_layouts">Gespeicherte Layouts…</string>
     <string name="input_saved_layouts_hint">Wählen Sie ein Layout oder erstellen Sie ein eigenes</string>
     <string name="input_second_screen_enable">Wählen Sie Profilsteuerung im Sitzungsmenü des Zweitbildschirms. Die Auswahl von Profil und Zweitbildschirm im Controller-Menü bestimmt die angezeigte Steuerung.</string>

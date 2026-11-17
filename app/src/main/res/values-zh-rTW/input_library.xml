@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">刪除 %1$s？使用它的模式會回到內建預設設定檔。已儲存的版面與共用設定仍可使用。</string>
     <string name="input_screen_visibility">顯示</string>
     <string name="input_visibility_shared">對所有設定檔生效。遊戲模式下未連接控制器時，Auto 會顯示主螢幕控制。</string>
-    <string name="input_edit_layout">在螢幕上編輯</string>
+    <string name="input_edit_layout">編輯版面</string>
     <string name="input_saved_layouts">已儲存的版面…</string>
     <string name="input_saved_layouts_hint">選擇版面或自行建立</string>
     <string name="input_second_screen_enable">在副螢幕工作階段選單中選擇「設定檔控制」。控制器選單中的設定檔與副螢幕選擇決定顯示哪些控制項。</string>

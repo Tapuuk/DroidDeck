@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Slet %1$s? Tilstande, der bruger den, vender tilbage til deres indbyggede standardprofil. Gemte layouts og delte indstillinger forbliver tilgængelige.</string>
     <string name="input_screen_visibility">Synlighed</string>
     <string name="input_visibility_shared">Gælder for alle profiler. Auto viser hovedskærmens betjening, når der ikke er tilsluttet en controller i spiltilstand.</string>
-    <string name="input_edit_layout">Rediger på skærmen</string>
+    <string name="input_edit_layout">Rediger layout</string>
     <string name="input_saved_layouts">Gemte layouts…</string>
     <string name="input_saved_layouts_hint">Vælg et layout, eller opret dit eget</string>
     <string name="input_second_screen_enable">Vælg Profilbetjening i sekundærskærmens sessionsmenu. Valgene Profil og Sekundær skærm i controllermenuen bestemmer, hvilken betjening der vises.</string>

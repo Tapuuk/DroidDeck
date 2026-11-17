@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">ลบ %1$s หรือไม่ โหมดที่ใช้จะกลับไปใช้โปรไฟล์เริ่มต้นที่มีมาให้ เลย์เอาต์ที่บันทึกและการตั้งค่าที่แชร์ยังใช้ได้</string>
     <string name="input_screen_visibility">การมองเห็น</string>
     <string name="input_visibility_shared">มีผลกับทุกโปรไฟล์ Auto จะแสดงการควบคุมหน้าจอหลักเมื่อไม่ได้เชื่อมต่อคอนโทรลเลอร์ในโหมดเกม</string>
-    <string name="input_edit_layout">แก้ไขบนหน้าจอ</string>
+    <string name="input_edit_layout">แก้ไขเลย์เอาต์</string>
     <string name="input_saved_layouts">เลย์เอาต์ที่บันทึก…</string>
     <string name="input_saved_layouts_hint">เลือกเลย์เอาต์หรือสร้างของคุณเอง</string>
     <string name="input_second_screen_enable">เลือกการควบคุมโปรไฟล์ในเมนูเซสชันของหน้าจอรอง ตัวเลือกโปรไฟล์และหน้าจอรองในเมนูคอนโทรลเลอร์กำหนดว่าจะแสดงการควบคุมใด</string>

@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Удалить %1$s? Режимы, использующие его, вернутся к встроенному профилю по умолчанию. Сохранённые раскладки и общие настройки останутся доступны.</string>
     <string name="input_screen_visibility">Видимость</string>
     <string name="input_visibility_shared">Применяется ко всем профилям. Auto показывает управление основного экрана, если в игровом режиме не подключён контроллер.</string>
-    <string name="input_edit_layout">Редактировать на экране</string>
+    <string name="input_edit_layout">Редактировать раскладку</string>
     <string name="input_saved_layouts">Сохранённые раскладки…</string>
     <string name="input_saved_layouts_hint">Выберите раскладку или создайте свою</string>
     <string name="input_second_screen_enable">Выберите «Управление профиля» в меню сеанса второго экрана. Селекторы «Профиль» и «Второй экран» в меню контроллера определяют, какое управление показывать.</string>

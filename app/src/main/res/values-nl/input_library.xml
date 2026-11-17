@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">%1$s verwijderen? Modi die het gebruiken keren terug naar hun ingebouwde standaardprofiel. Opgeslagen indelingen en gedeelde instellingen blijven beschikbaar.</string>
     <string name="input_screen_visibility">Zichtbaarheid</string>
     <string name="input_visibility_shared">Geldt voor alle profielen. Auto toont de bediening van het hoofdscherm als er geen controller is aangesloten in spelmodus.</string>
-    <string name="input_edit_layout">Op scherm bewerken</string>
+    <string name="input_edit_layout">Indeling bewerken</string>
     <string name="input_saved_layouts">Opgeslagen indelingen…</string>
     <string name="input_saved_layouts_hint">Kies een indeling of maak je eigen</string>
     <string name="input_second_screen_enable">Kies Profielbediening in het sessiemenu van het secundaire scherm. De keuzes Profiel en Secundair scherm in het controllermenu bepalen welke bediening wordt getoond.</string>

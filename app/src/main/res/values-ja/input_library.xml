@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">%1$s を削除しますか？使用中のモードは内蔵の既定プロファイルに戻ります。保存済みレイアウトと共有設定は引き続き利用できます。</string>
     <string name="input_screen_visibility">表示</string>
     <string name="input_visibility_shared">すべてのプロファイルに適用されます。Auto はゲームモードでコントローラーが接続されていないときにメイン画面のコントロールを表示します。</string>
-    <string name="input_edit_layout">画面上で編集</string>
+    <string name="input_edit_layout">レイアウトを編集</string>
     <string name="input_saved_layouts">保存済みレイアウト…</string>
     <string name="input_saved_layouts_hint">レイアウトを選択するか、新規作成します</string>
     <string name="input_second_screen_enable">セカンド画面のセッションメニューでプロファイルコントロールを選択します。コントローラーメニューのプロファイルとセカンド画面の選択で表示するコントロールを決めます。</string>

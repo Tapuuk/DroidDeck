@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Видалити %1$s? Режими, що його використовують, повернуться до вбудованого профілю за замовчуванням. Збережені компонування й спільні налаштування залишаться доступними.</string>
     <string name="input_screen_visibility">Видимість</string>
     <string name="input_visibility_shared">Застосовується до всіх профілів. Auto показує керування основного екрана, коли в ігровому режимі не підключено контролер.</string>
-    <string name="input_edit_layout">Редагувати на екрані</string>
+    <string name="input_edit_layout">Редагувати компонування</string>
     <string name="input_saved_layouts">Збережені компонування…</string>
     <string name="input_saved_layouts_hint">Виберіть компонування або створіть своє</string>
     <string name="input_second_screen_enable">Виберіть «Керування профілю» в меню сеансу другого екрана. Селектори «Профіль» і «Другий екран» у меню контролера визначають, яке керування показувати.</string>

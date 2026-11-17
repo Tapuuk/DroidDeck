@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Smazat %1$s? Režimy, které jej používají, se vrátí k vestavěnému výchozímu profilu. Uložená rozložení a sdílená nastavení zůstanou dostupná.</string>
     <string name="input_screen_visibility">Viditelnost</string>
     <string name="input_visibility_shared">Platí pro všechny profily. Auto zobrazí ovládání hlavní obrazovky, když v režimu hry není připojen ovladač.</string>
-    <string name="input_edit_layout">Upravit na obrazovce</string>
+    <string name="input_edit_layout">Upravit rozložení</string>
     <string name="input_saved_layouts">Uložená rozložení…</string>
     <string name="input_saved_layouts_hint">Vyberte rozložení nebo si vytvořte vlastní</string>
     <string name="input_second_screen_enable">V menu relace vedlejší obrazovky vyberte Ovládání profilu. Volby Profil a Vedlejší obrazovka v menu ovladače určují, které ovládání se zobrazí.</string>

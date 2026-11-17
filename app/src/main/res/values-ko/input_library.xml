@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">%1$s을(를) 삭제할까요? 사용 중인 모드는 내장 기본 프로필로 돌아갑니다. 저장된 레이아웃과 공유 설정은 계속 사용할 수 있습니다.</string>
     <string name="input_screen_visibility">표시</string>
     <string name="input_visibility_shared">모든 프로필에 적용됩니다. Auto는 게임 모드에서 컨트롤러가 연결되지 않았을 때 기본 화면 컨트롤을 표시합니다.</string>
-    <string name="input_edit_layout">화면에서 편집</string>
+    <string name="input_edit_layout">레이아웃 편집</string>
     <string name="input_saved_layouts">저장된 레이아웃…</string>
     <string name="input_saved_layouts_hint">레이아웃을 선택하거나 새로 만드세요</string>
     <string name="input_second_screen_enable">보조 화면 세션 메뉴에서 프로필 컨트롤을 선택하세요. 컨트롤러 메뉴의 프로필 및 보조 화면 선택으로 표시할 컨트롤을 정합니다.</string>

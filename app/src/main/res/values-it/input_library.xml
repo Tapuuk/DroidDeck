@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Eliminare %1$s? Le modalità che lo usano torneranno al profilo predefinito integrato. I layout salvati e le impostazioni condivise resteranno disponibili.</string>
     <string name="input_screen_visibility">Visibilità</string>
     <string name="input_visibility_shared">Vale per tutti i profili. Auto mostra i controlli dello schermo principale quando in modalità gioco non è collegato un controller.</string>
-    <string name="input_edit_layout">Modifica su schermo</string>
+    <string name="input_edit_layout">Modifica layout</string>
     <string name="input_saved_layouts">Layout salvati…</string>
     <string name="input_saved_layouts_hint">Scegli un layout o creane uno tuo</string>
     <string name="input_second_screen_enable">Scegli Controlli profilo nel menu sessione dello schermo secondario. I selettori Profilo e Schermo secondario nel menu del controller scelgono i controlli da mostrare.</string>

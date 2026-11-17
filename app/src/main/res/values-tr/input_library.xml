@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">%1$s silinsin mi? Onu kullanan modlar yerleşik varsayılan profillerine döner. Kaydedilen düzenler ve paylaşılan ayarlar kullanılabilir kalır.</string>
     <string name="input_screen_visibility">Görünürlük</string>
     <string name="input_visibility_shared">Tüm profillere uygulanır. Auto, oyun modunda denetleyici bağlı değilken ana ekran kontrollerini gösterir.</string>
-    <string name="input_edit_layout">Ekranda düzenle</string>
+    <string name="input_edit_layout">Düzeni düzenle</string>
     <string name="input_saved_layouts">Kaydedilen düzenler…</string>
     <string name="input_saved_layouts_hint">Bir düzen seçin veya kendinizinkini oluşturun</string>
     <string name="input_second_screen_enable">İkincil ekran oturum menüsünde Profil kontrollerini seçin. Denetleyici menüsündeki Profil ve İkincil ekran seçicileri hangi kontrollerin gösterileceğini belirler.</string>

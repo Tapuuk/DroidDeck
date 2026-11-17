@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">حذف %1$s؟ ستعود الأوضاع التي تستخدمه إلى ملف التعريف الافتراضي المدمج. ستبقى التخطيطات المحفوظة والإعدادات المشتركة متاحة.</string>
     <string name="input_screen_visibility">الظهور</string>
     <string name="input_visibility_shared">ينطبق على جميع ملفات التعريف. يعرض Auto عناصر تحكم الشاشة الرئيسية عند عدم توصيل وحدة تحكم في وضع اللعب.</string>
-    <string name="input_edit_layout">التحرير على الشاشة</string>
+    <string name="input_edit_layout">تعديل التخطيط</string>
     <string name="input_saved_layouts">التخطيطات المحفوظة…</string>
     <string name="input_saved_layouts_hint">اختر تخطيطًا أو أنشئ تخطيطك</string>
     <string name="input_second_screen_enable">اختر عناصر تحكم ملف التعريف في قائمة جلسة الشاشة الثانوية. يحدد محددا ملف التعريف والشاشة الثانوية في قائمة وحدة التحكم عناصر التحكم المعروضة.</string>

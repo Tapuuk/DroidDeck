@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Excluir %1$s? Os modos que o usam voltarão ao perfil padrão integrado. Os layouts salvos e as configurações compartilhadas continuarão disponíveis.</string>
     <string name="input_screen_visibility">Visibilidade</string>
     <string name="input_visibility_shared">Vale para todos os perfis. Auto mostra os controles da tela principal quando nenhum controle está conectado no modo jogo.</string>
-    <string name="input_edit_layout">Editar na tela</string>
+    <string name="input_edit_layout">Editar layout</string>
     <string name="input_saved_layouts">Layouts salvos…</string>
     <string name="input_saved_layouts_hint">Escolha um layout ou crie o seu</string>
     <string name="input_second_screen_enable">Escolha Controles do perfil no menu de sessão da tela secundária. Os seletores Perfil e Tela secundária no menu do controle escolhem os controles exibidos.</string>

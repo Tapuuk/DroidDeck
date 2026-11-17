@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">删除 %1$s？使用它的模式会回到内置默认配置。已保存的布局和共享设置仍可用。</string>
     <string name="input_screen_visibility">显示</string>
     <string name="input_visibility_shared">对所有配置生效。游戏模式下没接手柄时，Auto 会显示主屏控制。</string>
-    <string name="input_edit_layout">在屏幕上编辑</string>
+    <string name="input_edit_layout">编辑布局</string>
     <string name="input_saved_layouts">已保存的布局…</string>
     <string name="input_saved_layouts_hint">选择一个布局或自建一个</string>
     <string name="input_second_screen_enable">在副屏会话菜单里选「配置控制」。控制菜单里的配置和副屏选择决定显示哪些控件。</string>

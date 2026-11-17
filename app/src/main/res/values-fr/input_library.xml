@@ -18,7 +18,7 @@
     <string name="input_delete_profile_detail">Supprimer %1$s ? Les modes qui l\'utilisent reviendront à leur profil par défaut intégré. Les dispositions enregistrées et les réglages partagés resteront disponibles.</string>
     <string name="input_screen_visibility">Visibilité</string>
     <string name="input_visibility_shared">S\'applique à tous les profils. Auto affiche les contrôles de l\'écran principal lorsqu\'aucune manette n\'est connectée en mode jeu.</string>
-    <string name="input_edit_layout">Modifier à l\'écran</string>
+    <string name="input_edit_layout">Modifier la disposition</string>
     <string name="input_saved_layouts">Dispositions enregistrées…</string>
     <string name="input_saved_layouts_hint">Choisissez une disposition ou créez la vôtre</string>
     <string name="input_second_screen_enable">Choisissez Contrôles du profil dans le menu de session de l\'écran secondaire. Les sélecteurs Profil et Écran secondaire du menu de la manette choisissent les contrôles à afficher.</string>

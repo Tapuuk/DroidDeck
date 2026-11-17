@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Padam %1$s? Mod yang menggunakannya akan kembali kepada profil lalai terbina dalam. Susun atur tersimpan dan tetapan dikongsi kekal tersedia.</string>
     <string name="input_screen_visibility">Keterlihatan</string>
     <string name="input_visibility_shared">Terpakai pada semua profil. Auto menunjukkan kawalan skrin utama apabila tiada pengawal disambungkan dalam mod permainan.</string>
-    <string name="input_edit_layout">Sunting pada skrin</string>
+    <string name="input_edit_layout">Sunting susun atur</string>
     <string name="input_saved_layouts">Susun atur tersimpan…</string>
     <string name="input_saved_layouts_hint">Pilih susun atur atau cipta sendiri</string>
     <string name="input_second_screen_enable">Pilih Kawalan profil dalam menu sesi skrin kedua. Pemilih Profil dan Skrin kedua dalam menu pengawal menentukan kawalan yang dipaparkan.</string>

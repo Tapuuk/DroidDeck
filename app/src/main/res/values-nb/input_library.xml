@@ -51,7 +51,7 @@
     <string name="input_delete_profile_detail">Slette %1$s? Moduser som bruker den går tilbake til sin innebygde standardprofil. Lagrede oppsett og delte innstillinger forblir tilgjengelige.</string>
     <string name="input_screen_visibility">Synlighet</string>
     <string name="input_visibility_shared">Gjelder alle profiler. Auto viser hovedskjermens kontroller når ingen kontroller er tilkoblet i spillmodus.</string>
-    <string name="input_edit_layout">Rediger på skjermen</string>
+    <string name="input_edit_layout">Rediger oppsett</string>
     <string name="input_saved_layouts">Lagrede oppsett…</string>
     <string name="input_saved_layouts_hint">Velg et oppsett eller lag ditt eget</string>
     <string name="input_second_screen_enable">Velg Profilkontroller i øktmenyen på sekundærskjermen. Profil- og Sekundærskjerm-valgene i kontrollermenyen bestemmer hvilke kontroller som vises.</string>
