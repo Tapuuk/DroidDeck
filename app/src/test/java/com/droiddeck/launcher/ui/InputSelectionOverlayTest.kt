@@ -151,17 +151,17 @@ class InputSelectionOverlayTest {
     @Test fun outlinesFollowHowEachControlIsDrawn() {
         val d = 2f
         val stick = InputSurfaceElement(InputControl.LS, .1f, .2f, .3f, .2f, buttonShape = InputButtonShape.CIRCLE)
-        val classic = OutlineShape().ofControl(stick, tinted = true, width = w, height = h, density = d)
+        val classic = OutlineShape().ofControl(stick, width = w, height = h, density = d)
         assertEquals(400f - 50f, classic.centerX, .01f)
         assertEquals(50f, classic.corner, .01f)
         assertTrue(classic.circle)
-        val panel = OutlineShape().ofControl(stick.copy(id = "added"), tinted = true, width = w, height = h, density = d)
+        val panel = OutlineShape().ofControl(stick.copy(id = "added"), width = w, height = h, density = d)
         assertEquals(100f, panel.left, .01f); assertEquals(400f, panel.right, .01f); assertEquals(40f, panel.corner, .01f)
         val pad = InputSurfaceElement(InputControl.UP, .1f, .1f, .2f, .2f, kind = InputElementKind.DPAD)
-        assertTrue(OutlineShape().ofControl(pad, true, w, h, d).circle)
+        assertTrue(OutlineShape().ofControl(pad, w, h, d).circle)
         val bumper = InputSurfaceElement(InputControl.LB, .1f, .1f, .2f, .1f, buttonShape = InputButtonShape.PILL)
-        assertEquals(25f * .55f, OutlineShape().ofControl(bumper, true, w, h, d).corner, .01f)
-        assertEquals(25f, OutlineShape().ofControl(bumper, false, w, h, d).corner, .01f)
+        assertEquals(25f, OutlineShape().ofControl(bumper, w, h, d).corner, .01f)
+        assertEquals(25f, OutlineShape().ofControl(bumper.copy(id = "added"), w, h, d).corner, .01f)
     }
 
     @Test fun onlyTheSelectedControlGetsEditingUi() {

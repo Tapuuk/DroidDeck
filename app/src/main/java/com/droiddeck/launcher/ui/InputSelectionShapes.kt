@@ -29,10 +29,10 @@ internal class OutlineShape {
     fun grow(from: OutlineShape, by: Float) = set(from.left - by, from.top - by, from.right + by, from.bottom + by, from.corner + by)
 
     /** Shape of [e] as the controls preview draws it, for a surface of [width] x [height] pixels. */
-    fun ofControl(e: InputSurfaceElement, tinted: Boolean, width: Float, height: Float, density: Float): OutlineShape {
+    fun ofControl(e: InputSurfaceElement, width: Float, height: Float, density: Float): OutlineShape {
         val l = width * e.x; val t = height * e.y; val r = l + width * e.width; val b = t + height * e.height
         val w = r - l; val h = b - t; val half = min(w, h) / 2f
-        val classic = tinted && classicLook(e)
+        val classic = classicLook(e)
         return when (e.kind) {
             InputElementKind.STICK -> if (classic) {
                 val cx = when { w <= h -> l + w / 2f; e.control == InputControl.LS -> r - h / 2f; else -> l + h / 2f }
@@ -42,7 +42,7 @@ internal class OutlineShape {
             InputElementKind.DPAD -> set(l + w / 2f - half, t + h / 2f - half, l + w / 2f + half, t + h / 2f + half, half)
             else -> set(l, t, r, b, when (e.buttonShape) {
                 InputButtonShape.CIRCLE -> half
-                InputButtonShape.PILL -> if (classic) half * .55f else half
+                InputButtonShape.PILL -> half
                 InputButtonShape.RECTANGLE -> 2 * density
                 InputButtonShape.ROUNDED -> CONTROL_CORNER * density
             })

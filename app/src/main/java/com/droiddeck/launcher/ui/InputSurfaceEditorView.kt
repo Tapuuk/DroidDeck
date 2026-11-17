@@ -212,8 +212,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         hasSelection = false; memberCount = 0; otherCount = 0; warnCount = 0
         if (width == 0 || height == 0) return
         val w = width.toFloat(); val h = height.toFloat()
-        val tinted = style.tint != null
-        for (e in elements) (if (e.id in selection) shape(members, memberCount++) else shape(others, otherCount++)).ofControl(e, tinted, w, h, density)
+        for (e in elements) (if (e.id in selection) shape(members, memberCount++) else shape(others, otherCount++)).ofControl(e, w, h, density)
         if (memberCount == 0) return
         hasSelection = true
         group = memberCount > 1
