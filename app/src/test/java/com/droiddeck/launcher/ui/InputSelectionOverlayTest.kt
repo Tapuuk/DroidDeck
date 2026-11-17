@@ -202,6 +202,117 @@ class InputSelectionOverlayTest {
         assertEquals(View.LAYER_TYPE_NONE, popped.layerType)
     }
 
+    @Test fun handlesAndTheBadgeTakeTouchesAcross24dp() {
+        val mid = InputSurfaceElement(InputControl.A, .45f, .3f, .08f, .16f, "mid", buttonShape = InputButtonShape.CIRCLE)
+        val view = editor(mid)
+        view.selection = listOf("mid")
+        val r = 11.5f * view.density
+        for (i in 0 until 3) {
+            val (hx, hy) = view.handleCenter(i)
+            for (step in 0 until 8) {
+                val angle = step * Math.PI / 4
+                val x = hx + r * Math.cos(angle).toFloat(); val y = hy + r * Math.sin(angle).toFloat()
+                assertEquals("handle $i at ${step * 45}", i, view.handleAt(x, y))
+                assertFalse(view.hitsBadge(x, y))
+            }
+        }
+        val (bx, by) = view.badgeCenter()!!
+        for (step in 0 until 8) {
+            val angle = step * Math.PI / 4
+            assertTrue(view.hitsBadge(bx + r * Math.cos(angle).toFloat(), by + r * Math.sin(angle).toFloat()))
+        }
+        assertEquals("the middle still moves a small control", -1, view.handleAt(490f, 190f))
+    }
+
+    private fun InputSurfaceEditorView.editable(onDeleted: () -> Unit = {}): () -> Int {
+        var begins = 0
+        onBeginEdit = { begins++ }
+        onChange = { changed -> elements = elements.map { e -> changed.firstOrNull { it.id == e.id } ?: e } }
+        onDelete = onDeleted
+        return { begins }
+    }
+
+    private fun InputSurfaceEditorView.key(code: Int, meta: Int = 0) =
+        onKeyDown(code, android.view.KeyEvent(0L, 0L, android.view.KeyEvent.ACTION_DOWN, code, 0, meta))
+
+    @Test fun aControllerOrKeyboardFocusesSelectsMovesResizesAndDeletes() {
+        val view = editor(a, b)
+        var deleted = false
+        val begins = view.editable { deleted = true }
+        val step = 8 * view.density
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT))
+        assertEquals("one", view.focusedControl)
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT))
+        assertEquals("two", view.focusedControl)
+        assertFalse("focus leaves the canvas past the last control", view.key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT))
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_DPAD_LEFT))
+        assertEquals("one", view.focusedControl)
+
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_BUTTON_A))
+        assertEquals(listOf("one"), view.selection)
+        view.key(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        view.key(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        val moved = view.elements.first { it.id == "one" }
+        assertEquals(.4f + step / w, moved.x, .0001f)
+        assertEquals(.3f + step / h, moved.y, .0001f)
+        assertEquals(1, begins())
+
+        view.key(android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.META_SHIFT_ON)
+        assertEquals(.11f, view.elements.first { it.id == "one" }.width, .0001f)
+        view.key(android.view.KeyEvent.KEYCODE_BUTTON_L1)
+        assertEquals(.1f, view.elements.first { it.id == "one" }.width, .0001f)
+        assertEquals("a run of nudges is one undo step", 1, begins())
+
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_BUTTON_B))
+        assertTrue(view.selection.isEmpty())
+        assertFalse("B with nothing selected falls through to Back", view.key(android.view.KeyEvent.KEYCODE_BUTTON_B))
+        view.key(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+        assertTrue(view.key(android.view.KeyEvent.KEYCODE_FORWARD_DEL))
+        assertTrue(deleted)
+    }
+
+    @Test fun focusMovesToTheNearestControlThatWayAndEntersFromTheEdge() {
+        val left = InputSurfaceElement(InputControl.A, .1f, .4f, .1f, .2f, "left")
+        val up = InputSurfaceElement(InputControl.B, .45f, .1f, .1f, .2f, "up")
+        val right = InputSurfaceElement(InputControl.X, .8f, .45f, .1f, .2f, "right")
+        val far = InputSurfaceElement(InputControl.Y, .6f, .8f, .1f, .2f, "far")
+        val all = listOf(left, up, right, far)
+        assertEquals("left", nextControl(all, null, View.FOCUS_RIGHT, w, h))
+        assertEquals("right", nextControl(all, null, View.FOCUS_LEFT, w, h))
+        assertEquals("up", nextControl(all, null, View.FOCUS_DOWN, w, h))
+        assertEquals("right", nextControl(all, "left", View.FOCUS_RIGHT, w, h))
+        assertEquals("up", nextControl(all, "left", View.FOCUS_UP, w, h))
+        assertEquals("far", nextControl(all, "left", View.FOCUS_DOWN, w, h))
+        assertEquals(null, nextControl(all, "left", View.FOCUS_LEFT, w, h))
+    }
+
+    @Test fun talkBackFindsEachControlAndSelectsMovesAndDeletesIt() {
+        val view = editor(a, b)
+        var deleted = false
+        view.editable { deleted = true }
+        val provider = view.accessibilityNodeProvider!!
+        val host = provider.createAccessibilityNodeInfo(View.NO_ID)!!
+        assertEquals(2, host.childCount)
+        val node = provider.createAccessibilityNodeInfo(0)!!
+        assertEquals(a.name, node.contentDescription)
+        val bounds = android.graphics.Rect().also(node::getBoundsInParent)
+        assertEquals(android.graphics.Rect(400, 150, 500, 250), bounds)
+        val actions = node.actionList.map { it.id }
+        for (id in listOf(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, com.droiddeck.launcher.R.id.input_editor_move_left,
+            com.droiddeck.launcher.R.id.input_editor_move_down, com.droiddeck.launcher.R.id.input_editor_delete)) assertTrue("$id", id in actions)
+        assertFalse(node.isSelected)
+
+        assertTrue(provider.performAction(0, android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, null))
+        assertEquals(listOf("one"), view.selection)
+        assertTrue(provider.createAccessibilityNodeInfo(0)!!.isSelected)
+
+        assertTrue(provider.performAction(1, com.droiddeck.launcher.R.id.input_editor_move_right, null))
+        assertEquals(listOf("two"), view.selection)
+        assertEquals(.7f + 32 * view.density / w, view.elements.first { it.id == "two" }.x, .0001f)
+        assertTrue(provider.performAction(1, com.droiddeck.launcher.R.id.input_editor_delete, null))
+        assertTrue(deleted)
+    }
+
     @Test fun groupOutlineDashesWithoutAPathEffect() {
         val shape = OutlineShape().set(0f, 0f, 300f, 200f, 40f)
         val perimeter = 2 * (220f + 120f) + 2 * Math.PI.toFloat() * 40f

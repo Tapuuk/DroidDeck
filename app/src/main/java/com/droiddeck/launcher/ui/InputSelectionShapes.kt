@@ -3,6 +3,7 @@ package com.droiddeck.launcher.ui
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.view.View
 import com.droiddeck.launcher.input.InputButtonShape
 import com.droiddeck.launcher.input.InputControl
 import com.droiddeck.launcher.input.InputElementKind
@@ -158,14 +159,33 @@ internal fun deleteBadgeCorner(ring: OutlineShape, width: Float, height: Float, 
 }
 
 /**
- * Index of the handle a touch at [x],[y] grabs: the nearest of [xs],[ys] within [reach], unless the touch is nearer the selection's
- * centre ([cx],[cy]) than that handle, so a small control's middle still moves it. -1 when none.
+ * Index of the handle a touch at [x],[y] grabs: the nearest of [xs],[ys] within [reach]. Past [sure] of that handle the touch is left to the
+ * selection when it is nearer the selection's centre ([cx],[cy]), so a small control's middle still moves it. -1 when none.
  */
-internal fun pickHandle(x: Float, y: Float, xs: FloatArray, ys: FloatArray, reach: Float, cx: Float, cy: Float): Int {
+internal fun pickHandle(x: Float, y: Float, xs: FloatArray, ys: FloatArray, reach: Float, cx: Float, cy: Float, sure: Float = 0f): Int {
     var best = -1; var bestDistance = reach
     for (i in xs.indices) {
         val d = hypot(x - xs[i], y - ys[i])
         if (d <= bestDistance) { best = i; bestDistance = d }
     }
-    return if (best >= 0 && hypot(x - cx, y - cy) < bestDistance) -1 else best
+    return if (best >= 0 && bestDistance > sure && hypot(x - cx, y - cy) < bestDistance) -1 else best
+}
+
+/**
+ * The control focus moves to from [from] in [direction] (a View.FOCUS_ direction) on a [width] x [height] surface: of the controls whose centre
+ * lies that way, the nearest one level with [from], else the nearest favouring ones in line. With no [from], the one at the edge focus enters
+ * from. Null when there is none.
+ */
+internal fun nextControl(elements: List<InputSurfaceElement>, from: String?, direction: Int, width: Float, height: Float): String? {
+    fun cx(e: InputSurfaceElement) = (e.x + e.width / 2f) * width
+    fun cy(e: InputSurfaceElement) = (e.y + e.height / 2f) * height
+    val horizontal = direction == View.FOCUS_LEFT || direction == View.FOCUS_RIGHT
+    val sign = if (direction == View.FOCUS_RIGHT || direction == View.FOCUS_DOWN) 1f else -1f
+    val origin = elements.firstOrNull { it.id == from }
+        ?: return elements.minByOrNull { sign * (if (horizontal) cx(it) else cy(it)) * 4f + (if (horizontal) cy(it) else cx(it)) }?.id
+    fun level(e: InputSurfaceElement) = if (horizontal) e.y < origin.y + origin.height && origin.y < e.y + e.height
+        else e.x < origin.x + origin.width && origin.x < e.x + e.width
+    val ahead = elements.filter { it.id != origin.id && sign * (if (horizontal) cx(it) - cx(origin) else cy(it) - cy(origin)) > .5f }
+    return ahead.filter(::level).minByOrNull { abs(if (horizontal) cx(it) - cx(origin) else cy(it) - cy(origin)) }?.id
+        ?: ahead.minByOrNull { abs(if (horizontal) cx(it) - cx(origin) else cy(it) - cy(origin)) + 2f * abs(if (horizontal) cy(it) - cy(origin) else cx(it) - cx(origin)) }?.id
 }

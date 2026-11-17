@@ -61,4 +61,14 @@
     <string name="input_edit_buttons_hint">Add a controller button or a group of them, or select any on-screen button in the editor and delete it.</string>
     <string name="input_add_keyboard">Keyboard</string>
     <string name="input_reset_layout">Reset layout</string>
+    <string name="input_editor_select">Select</string>
+    <string name="input_editor_move_left">Move left</string>
+    <string name="input_editor_move_right">Move right</string>
+    <string name="input_editor_move_up">Move up</string>
+    <string name="input_editor_move_down">Move down</string>
+    <item name="input_editor_move_left" type="id" />
+    <item name="input_editor_move_right" type="id" />
+    <item name="input_editor_move_up" type="id" />
+    <item name="input_editor_move_down" type="id" />
+    <item name="input_editor_delete" type="id" />
 </resources>

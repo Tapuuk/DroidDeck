@@ -11,15 +11,24 @@ import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.TypedValue
+import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.FrameLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat
+import androidx.customview.widget.ExploreByTouchHelper
+import com.droiddeck.launcher.R
 import com.droiddeck.launcher.input.InputControl
 import com.droiddeck.launcher.input.InputElementKind
 import com.droiddeck.launcher.input.InputSurfaceElement
@@ -29,6 +38,7 @@ import com.droiddeck.launcher.input.boundsOf
 import com.droiddeck.launcher.input.moveSelection
 import com.droiddeck.launcher.input.pressSelection
 import com.droiddeck.launcher.input.resizeSelection
+import com.droiddeck.launcher.input.scaleSelection
 import com.droiddeck.launcher.input.sizePercent
 import com.droiddeck.launcher.input.snapSurfaceElement
 import com.droiddeck.launcher.input.tapSelection
@@ -39,7 +49,12 @@ import kotlin.math.roundToInt
 
 internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     var elements: List<InputSurfaceElement> = emptyList()
-        set(value) { if (value == field) return; field = value; preview.updateCustomLayout(value); popPending(); refreshGeometry() }
+        set(value) {
+            if (value == field) return
+            field = value; preview.updateCustomLayout(value); popPending(); refreshGeometry()
+            if (value.none { it.id == focused }) focused = null
+            access.invalidateRoot()
+        }
     var style = InputSurfaceStyle()
         set(value) { if (value == field) return; field = value; preview.updateStyle(value); refreshGeometry() }
     var snap = true
@@ -49,7 +64,9 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
             if (value == field) return
             field = value
             if (value.isNotEmpty()) selectionIn.animate(0f, SELECT_MS, SELECT_MS.toLong(), LINEAR) else selectionIn.snap(SELECT_MS)
+            nudging = false
             refreshGeometry()
+            access.invalidateRoot()
         }
     var onSelect: (List<String>) -> Unit = {}
     var onBeginEdit: () -> Unit = {}
@@ -64,6 +81,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     private val badgeReach = 22 * density
     private val handleRadius = 12 * density
     private val handleReach = 22 * density
+    /** Every handle and the badge take touches this close to their centre: a 24dp target. */
+    private val sureReach = 12 * density
 
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -129,12 +148,24 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     private var activeHandle = -1
     private var dragging = false
 
+    private var focused: String? = null
+    private val focusRing = OutlineShape()
+    private var nudging = false
+    private val access = ControlAccess()
+
     private class Ghost(val bitmap: Bitmap, val x: Float, val y: Float, val alpha: Float)
 
     init {
         setBackgroundColor(Color.rgb(10, 11, 13))
+        preview.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         addView(preview, LayoutParams(-1, -1))
+        isFocusable = true
+        defaultFocusHighlightEnabled = false
+        ViewCompat.setAccessibilityDelegate(this, access)
     }
+
+    /** The control keyboard and controller focus is on, or null. */
+    internal val focusedControl get() = focused
 
     /** Plays the pop-in for newly added controls. Call it once their elements are set; ids not on screen yet pop when they arrive. */
     fun popIn(ids: Collection<String>) {
@@ -242,10 +273,17 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
 
     internal fun badgeCenter(): Pair<Float, Float>? = if (hasSelection) badgeX to badgeY else null
 
-    /** Index of the resize handle under x,y, counting the corners top-left, bottom-left, bottom-right, top-right minus the badge's; -1 for none. */
-    internal fun handleAt(x: Float, y: Float) = if (!hasSelection) -1 else pickHandle(x, y, handleX, handleY, handleReach, ring.centerX, ring.centerY)
+    internal fun handleCenter(i: Int): Pair<Float, Float> = handleX[i] to handleY[i]
 
-    internal fun hitsBadge(x: Float, y: Float) = hasSelection && hypot(x - badgeX, y - badgeY) <= badgeReach
+    /** Index of the resize handle under x,y, counting the corners top-left, bottom-left, bottom-right, top-right minus the badge's; -1 for none. */
+    internal fun handleAt(x: Float, y: Float) = if (!hasSelection) -1 else pickHandle(x, y, handleX, handleY, handleReach, ring.centerX, ring.centerY, sureReach)
+
+    /** True when x,y presses the delete badge; a handle wins where the touch is within its 24dp and nearer to it. */
+    internal fun hitsBadge(x: Float, y: Float): Boolean {
+        if (!hasSelection) return false
+        val d = hypot(x - badgeX, y - badgeY)
+        return d <= badgeReach && (0 until 3).none { i -> hypot(x - handleX[i], y - handleY[i]).let { it <= sureReach && it < d } }
+    }
 
     internal val overlapping get() = warnCount
 
@@ -257,6 +295,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     internal fun drawOverlay(canvas: Canvas) {
         drawGhosts(canvas)
         drawGuides(canvas)
+        drawFocus(canvas)
         if (!hasSelection) return
         for (i in 0 until warnCount) drawRing(canvas, warned[i], WARN, WARN_HALO, 1f)
         val t = selectionIn.value
@@ -270,6 +309,13 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         for (i in 0 until 3) drawHandle(canvas, i, handleIn(t, i))
         drawBadge(canvas, handleIn(t, 3))
         if (dragging) drawReadout(canvas)
+    }
+
+    private fun drawFocus(canvas: Canvas) {
+        if (!isFocused || width == 0) return
+        val e = elements.firstOrNull { it.id == focused } ?: return
+        focusRing.ofControl(e, width.toFloat(), height.toFloat(), density)
+        drawRing(canvas, focusRing.grow(focusRing, FOCUS_OUT * density), Color.WHITE, FOCUS_HALO, 1f)
     }
 
     private fun handleIn(t: Float, i: Int) = CubicEase.POP.getInterpolation(((t - HANDLE_DELAY_MS - i * HANDLE_STAGGER_MS) / HANDLE_MS).coerceIn(0f, 1f))
@@ -404,13 +450,14 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 clearGuides()
                 badge = hitsBadge(event.x, event.y)
                 if (badge) { badgePress.animate(badgePress.value, 1f, PRESS_MS); return true }
-                downX = event.x; downY = event.y; dragging = false; corner = 0; readout = null
+                downX = event.x; downY = event.y; dragging = false; corner = 0; readout = null; nudging = false
                 before = selection
                 activeHandle = handleAt(downX, downY)
                 if (activeHandle >= 0) corner = handleCorner[activeHandle]
                 hit = if (corner != 0) null else elements.asReversed().firstOrNull {
                     downX / width in it.x..(it.x + it.width) && downY / height in it.y..(it.y + it.height)
                 }?.id
+                hit?.let { focused = it }
                 val inside = hit == null && hasSelection && ring.contains(downX, downY)
                 if (corner == 0 && !inside) {
                     val pressed = elements.pressSelection(before, hit)
@@ -468,6 +515,123 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         return true
     }
 
+    override fun onFocusChanged(gained: Boolean, direction: Int, previous: Rect?) {
+        super.onFocusChanged(gained, direction, previous)
+        access.onFocusChanged(gained, direction, previous)
+        if (gained && focused == null) focused = nextControl(elements, null, when (direction) {
+            FOCUS_LEFT, FOCUS_BACKWARD -> FOCUS_LEFT
+            FOCUS_UP -> FOCUS_UP
+            FOCUS_DOWN -> FOCUS_DOWN
+            else -> FOCUS_RIGHT
+        }, width.toFloat(), height.toFloat())
+        invalidate()
+    }
+
+    override fun dispatchHoverEvent(event: MotionEvent) = access.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
+
+    /**
+     * D-pad or arrows move focus between controls, and A or Enter selects the focused one the way a tap does. With a selection the arrows
+     * move it, Shift with an arrow or L1 and R1 resize it, Delete or X deletes it and B or Escape lets it go.
+     */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (!isEnabled || width == 0 || height == 0) return super.onKeyDown(keyCode, event)
+        val selected = selection.isNotEmpty()
+        val handled = when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> arrow(FOCUS_LEFT, event.isShiftPressed)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> arrow(FOCUS_RIGHT, event.isShiftPressed)
+            KeyEvent.KEYCODE_DPAD_UP -> arrow(FOCUS_UP, event.isShiftPressed)
+            KeyEvent.KEYCODE_DPAD_DOWN -> arrow(FOCUS_DOWN, event.isShiftPressed)
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A ->
+                focused?.let { choose(elements.tapSelection(selection, it)) } != null
+            KeyEvent.KEYCODE_BUTTON_L1 -> selected.also { if (it) resizeSelected(grow = false) }
+            KeyEvent.KEYCODE_BUTTON_R1 -> selected.also { if (it) resizeSelected(grow = true) }
+            KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_FORWARD_DEL, KeyEvent.KEYCODE_BUTTON_X -> selected.also { if (it) deleteSelected() }
+            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BUTTON_B -> selected.also { if (it) choose(emptyList()) }
+            else -> false
+        }
+        return handled || super.onKeyDown(keyCode, event)
+    }
+
+    private fun arrow(direction: Int, resize: Boolean): Boolean {
+        if (selection.isEmpty()) {
+            focused = nextControl(elements, focused, direction, width.toFloat(), height.toFloat()) ?: return false
+            invalidate()
+            return true
+        }
+        val step = NUDGE_DP * density
+        if (resize) resizeSelected(grow = direction == FOCUS_RIGHT || direction == FOCUS_UP)
+        else nudgeSelected(when (direction) { FOCUS_LEFT -> -step; FOCUS_RIGHT -> step; else -> 0f }, when (direction) { FOCUS_UP -> -step; FOCUS_DOWN -> step; else -> 0f })
+        return true
+    }
+
+    private fun choose(next: List<String>) {
+        if (next == selection) return
+        selection = next
+        onSelect(next)
+    }
+
+    private fun edit(next: List<InputSurfaceElement>) {
+        if (!nudging) { onBeginEdit(); nudging = true }
+        onChange(next.filter { it.id in selection })
+    }
+
+    private fun nudgeSelected(dx: Float, dy: Float) = edit(elements.moveSelection(selection, dx / width, dy / height))
+
+    private fun resizeSelected(grow: Boolean) = edit(elements.scaleSelection(selection, if (grow) SIZE_STEP else 1f / SIZE_STEP))
+
+    private fun deleteSelected() {
+        playDelete(selection)
+        onDelete()
+    }
+
+    /** The controls as TalkBack nodes, each named after its control, that select on a double tap and move or delete through actions. */
+    private inner class ControlAccess : ExploreByTouchHelper(this) {
+        private val bounds = Rect()
+
+        override fun getVirtualViewAt(x: Float, y: Float): Int {
+            if (width == 0 || height == 0) return HOST_ID
+            val i = elements.indexOfLast { x / width in it.x..(it.x + it.width) && y / height in it.y..(it.y + it.height) }
+            return if (i >= 0) i else HOST_ID
+        }
+
+        override fun getVisibleVirtualViews(ids: MutableList<Int>) { ids.addAll(elements.indices) }
+
+        override fun onPopulateNodeForVirtualView(id: Int, node: AccessibilityNodeInfoCompat) {
+            val e = elements.getOrNull(id)
+            if (e == null) { node.contentDescription = ""; node.setBoundsInParent(bounds.apply { set(0, 0, 1, 1) }); return }
+            node.contentDescription = e.name
+            node.className = Button::class.java.name
+            node.isSelected = e.id in selection
+            node.isClickable = true
+            bounds.set((e.x * width).roundToInt(), (e.y * height).roundToInt(), ((e.x + e.width) * width).roundToInt(), ((e.y + e.height) * height).roundToInt())
+            node.setBoundsInParent(bounds)
+            node.addAction(AccessibilityActionCompat(AccessibilityNodeInfoCompat.ACTION_CLICK, context.getString(R.string.input_editor_select)))
+            for ((action, label) in MOVES) node.addAction(AccessibilityActionCompat(action, context.getString(label)))
+            node.addAction(AccessibilityActionCompat(R.id.input_editor_delete, context.getString(R.string.input_delete_element)))
+        }
+
+        override fun onPerformActionForVirtualView(id: Int, action: Int, arguments: Bundle?): Boolean {
+            val e = elements.getOrNull(id) ?: return false
+            if (width == 0 || height == 0) return false
+            if (action == AccessibilityNodeInfoCompat.ACTION_CLICK) {
+                focused = e.id
+                choose(elements.tapSelection(selection, e.id))
+                return true
+            }
+            if (action != R.id.input_editor_delete && MOVES.none { it.first == action }) return false
+            if (e.id !in selection) choose(listOf(e.id))
+            val step = ACCESS_NUDGE_DP * density
+            when (action) {
+                R.id.input_editor_delete -> deleteSelected()
+                R.id.input_editor_move_left -> nudgeSelected(-step, 0f)
+                R.id.input_editor_move_right -> nudgeSelected(step, 0f)
+                R.id.input_editor_move_up -> nudgeSelected(0f, -step)
+                else -> nudgeSelected(0f, step)
+            }
+            return true
+        }
+    }
+
     private fun endGesture() {
         original = null; dragging = false; activeHandle = -1; readout = null; clearGuides(); refreshGeometry()
     }
@@ -481,6 +645,13 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         private const val GROUP_PAD = 10f
         private const val DASH_ON = 6f
         private const val DASH_OFF = 4f
+        private const val FOCUS_OUT = 8f
+        private const val NUDGE_DP = 8f
+        private const val ACCESS_NUDGE_DP = 32f
+        private const val SIZE_STEP = 1.1f
+        private val MOVES = listOf(R.id.input_editor_move_left to R.string.input_editor_move_left, R.id.input_editor_move_right to R.string.input_editor_move_right,
+            R.id.input_editor_move_up to R.string.input_editor_move_up, R.id.input_editor_move_down to R.string.input_editor_move_down)
+        private val FOCUS_HALO = Color.argb(64, 255, 255, 255)
         private const val OUTLINE_MS = 120f
         private const val HANDLE_DELAY_MS = 90f
         private const val HANDLE_STAGGER_MS = 30f
