@@ -105,7 +105,7 @@ internal fun InputAddChoice.preview(): InputSurfaceElement {
 
 private val PanelShape = RoundedCornerShape(20.dp)
 private val TileShape = RoundedCornerShape(14.dp)
-private val TileWidth = 84.dp
+private val TileWidth = 76.dp
 private val MiniSize = 64.dp
 
 /** The Add control panel: a grid of every control [choices] offers, each drawn like the real control in [style]. */
