@@ -58,7 +58,7 @@
     <string name="input_add_back_all">Add all back</string>
     <string name="input_delete_element">Delete</string>
     <string name="input_edit_buttons">Add or delete buttons</string>
-    <string name="input_edit_buttons_hint">Add a controller button, key or mouse button, or select any on-screen button in the editor and delete it.</string>
+    <string name="input_edit_buttons_hint">Add a controller button or a group of them, or select any on-screen button in the editor and delete it.</string>
     <string name="input_add_keyboard">Keyboard</string>
     <string name="input_reset_layout">Reset layout</string>
 </resources>

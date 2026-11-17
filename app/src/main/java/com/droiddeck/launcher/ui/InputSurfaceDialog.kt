@@ -205,7 +205,8 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
             placed = hidden
             return
         }
-        val stock = group.members.map { stockGeometry[it.stock.first()] }
+        val live = group.members.map { m -> elements.firstOrNull { it.id == m.stock.first() } }
+        val stock = if (live.all { it != null }) live else group.members.map { stockGeometry[it.stock.first()] }
         val rects = if (stock.all { it != null }) stock.map { SurfaceBounds(it!!.x, it.y, it.x + it.width, it.y + it.height) }
             else group.arrangement.map { SurfaceBounds(it.left * group.size / aspect, it.top * group.size, it.right * group.size / aspect, it.bottom * group.size) }
         val left = rects.minOf { it.left }

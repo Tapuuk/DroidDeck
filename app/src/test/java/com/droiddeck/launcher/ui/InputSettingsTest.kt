@@ -728,6 +728,9 @@ class InputSettingsTest {
         assertEquals(added.map { it.id }, draft.selection)
         assertEquals(listOf(InputControl.Y, InputControl.B, InputControl.A, InputControl.X).map { InputAction.Native(it) }, added.map { draft.actions[it.id] })
         val (y, b, a, x) = added
+        val stockA = before.first { it.id == "legacy:a" }
+        assertEquals(stockA.width, a.width, 1e-5f)
+        assertEquals(stockA.height, a.height, 1e-5f)
         assertEquals(y.x, a.x, 1e-5f)
         assertTrue(y.y < a.y && x.x < b.x)
         assertEquals(x.y, b.y, 1e-5f)
