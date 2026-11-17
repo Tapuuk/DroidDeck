@@ -406,6 +406,7 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false, onD
 }
 
 private val PillWidth = 240.dp
+private val BarIcon = 36.dp
 /** How far the selection's handles and delete badge reach past its controls. */
 private val SelectionReach = 24.dp
 
@@ -540,25 +541,25 @@ private fun EditorMenuBar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () -
     collapse: (() -> Unit)? = null, collapseModifier: Modifier = Modifier, onChipPlaced: (androidx.compose.ui.geometry.Rect) -> Unit = {}) {
     val context = LocalContext.current
     val sizeLabel = stringResource(R.string.input_editor_layout_size)
-    Row(modifier.height(EditorBarHeight).editorGlass(RoundedCornerShape(24.dp)).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(modifier.height(EditorBarHeight).editorGlass(RoundedCornerShape(22.dp), opacity = 0.94f).horizontalScroll(rememberScrollState())
+        .padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (collapse != null) EditorIconButton(if (top) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, stringResource(R.string.input_editor_hide_menu),
-            collapseModifier.testTag("input-editor-tools"), onClick = collapse)
-        EditorIconButton(Icons.Filled.Close, stringResource(R.string.common_close), Modifier.testTag("input-editor-close"), onClick = onLeave)
+            collapseModifier.testTag("input-editor-tools"), size = BarIcon, onClick = collapse)
+        EditorIconButton(Icons.Filled.Close, stringResource(R.string.common_close), Modifier.testTag("input-editor-close"), size = BarIcon, onClick = onLeave)
         EditorIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.input_editor_undo), Modifier.testTag("input-editor-undo"),
-            enabled = draft.history.isNotEmpty()) { draft.undo() }
+            enabled = draft.history.isNotEmpty(), size = BarIcon) { draft.undo() }
         EditorIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.input_editor_redo), Modifier.testTag("input-editor-redo"),
-            enabled = draft.redoable.isNotEmpty()) { draft.redo() }
+            enabled = draft.redoable.isNotEmpty(), size = BarIcon) { draft.redo() }
         EditorBarDivider()
-        EditorChip(stringResource(R.string.input_editor_add), enabled = draft.canAdd, active = draft.adding) { draft.adding = true }
+        EditorChip(stringResource(R.string.input_editor_add), Modifier.padding(horizontal = 2.dp), enabled = draft.canAdd, active = draft.adding) { draft.adding = true }
         if (draft.defaults != null) EditorIconButton(Icons.Filled.RestartAlt, stringResource(R.string.input_reset_layout), Modifier.testTag("input-editor-reset"),
-            enabled = draft.resettable) { draft.resetLayout() }
-        EditorIconButton(Icons.Filled.GridOn, stringResource(R.string.ctrl_editor_snap), Modifier.testTag("input-editor-snap"), checked = draft.snap) {
+            enabled = draft.resettable, size = BarIcon) { draft.resetLayout() }
+        EditorIconButton(Icons.Filled.GridOn, stringResource(R.string.ctrl_editor_snap), Modifier.testTag("input-editor-snap"), checked = draft.snap, size = BarIcon) {
             draft.snap = !draft.snap
             ControllerPrefs.setSnap(context, draft.snap)
         }
         if (draft.elements.isNotEmpty()) EditorChip("${draft.scale}%", Modifier.semantics { contentDescription = sizeLabel }.testTag("input-editor-size")
-            .onGloballyPositioned { onChipPlaced(it.boundsInRoot()) }, active = draft.sizeOpen,
+            .padding(horizontal = 2.dp).onGloballyPositioned { onChipPlaced(it.boundsInRoot()) }, active = draft.sizeOpen,
             trailing = if (top) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess) { draft.sizeOpen = !draft.sizeOpen }
         EditorSaveButton(stringResource(R.string.input_editor_save), draft.dirty, Modifier.padding(start = 4.dp).testTag("input-editor-save"), onSave)
     }

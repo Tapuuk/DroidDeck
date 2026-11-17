@@ -101,7 +101,7 @@ internal object EditorMotion {
     const val HINT_MS = 3_000L
 }
 
-internal val EditorBarHeight = 48.dp
+internal val EditorBarHeight = 44.dp
 internal val EditorHandleSize = 40.dp
 private val ChipShape = RoundedCornerShape(18.dp)
 private val SaveShape = RoundedCornerShape(12.dp)
@@ -110,12 +110,12 @@ private val DialogButtonShape = RoundedCornerShape(14.dp)
 private val SliderShape = RoundedCornerShape(12.dp)
 private val ToastShape = RoundedCornerShape(20.dp)
 
-/** The editor's translucent panel look: surface at 78%, a faint edge and the panel shadow. */
+/** The editor's translucent panel look: surface at [opacity], a faint edge and the panel shadow. */
 @Composable
-internal fun Modifier.editorGlass(shape: Shape): Modifier {
+internal fun Modifier.editorGlass(shape: Shape, opacity: Float = 0.78f): Modifier {
     val pal = LocalPalette.current
     return shadow(12.dp, shape, ambientColor = Color.Black, spotColor = Color.Black).clip(shape)
-        .background(pal.surface.copy(alpha = 0.78f)).border(1.dp, pal.onBackground.copy(alpha = 0.09f), shape)
+        .background(pal.surface.copy(alpha = opacity)).border(1.dp, pal.onBackground.copy(alpha = 0.09f), shape)
 }
 
 /** Press feedback: .94 in 70ms, back with a 160ms pop. */
@@ -127,7 +127,7 @@ private fun pressScale(source: MutableInteractionSource): Float {
 
 @Composable
 internal fun EditorIconButton(icon: ImageVector, label: String, modifier: Modifier = Modifier, enabled: Boolean = true,
-    checked: Boolean? = null, onClick: () -> Unit) {
+    checked: Boolean? = null, size: Dp = 40.dp, onClick: () -> Unit) {
     val pal = LocalPalette.current
     val src = remember { MutableInteractionSource() }
     val hot = rememberHot(src) && enabled
@@ -137,7 +137,7 @@ internal fun EditorIconButton(icon: ImageVector, label: String, modifier: Modifi
         else Modifier.clickable(src, null, enabled, role = Role.Button, onClick = onClick)
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(40.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape)
+        modifier = modifier.size(size).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape)
             .background(if (hot) pal.signal.copy(alpha = 0.14f) else if (on) pal.signal.copy(alpha = 0.18f) else Color.Transparent)
             .glideBorder(hot, CircleShape, pal.signal, hotFillAlpha = 0f)
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
@@ -177,19 +177,20 @@ internal fun EditorSaveButton(text: String, enabled: Boolean, modifier: Modifier
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier.height(36.dp).graphicsLayer {
-            scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else 0.45f
+            scaleX = scale; scaleY = scale
             shadowElevation = if (enabled) 6.dp.toPx() else 0f; shape = SaveShape; clip = false
             ambientShadowColor = pal.signal; spotShadowColor = pal.signal
-        }.clip(SaveShape).background(Brush.verticalGradient(listOf(pal.primary, pal.primary2)))
-            .glideBorder(hot, SaveShape, pal.onBackground, hotFillAlpha = 0f)
+        }.clip(SaveShape).then(if (enabled) Modifier.background(Brush.verticalGradient(listOf(pal.primary, pal.primary2)))
+                else Modifier.background(pal.surfaceVariant))
+            .glideBorder(hot, SaveShape, pal.onBackground, if (enabled) Color.Transparent else pal.line2, hotFillAlpha = 0f)
             .hoverable(src).clickable(src, null, enabled, role = Role.Button, onClick = onClick).controllerConfirm(enabled, onClick)
             .padding(horizontal = 16.dp),
-    ) { Text(text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = pal.onPrimary, maxLines = 1) }
+    ) { Text(text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) pal.onPrimary else pal.onSurfaceVariant, maxLines = 1) }
 }
 
 @Composable
 internal fun EditorBarDivider() {
-    Box(Modifier.padding(horizontal = 6.dp).size(1.dp, 24.dp).background(LocalPalette.current.line2))
+    Box(Modifier.padding(horizontal = 4.dp).size(1.dp, 22.dp).background(LocalPalette.current.line2))
 }
 
 /** One horizontal stepped slider row: label, track, value. Drags report [onSliding] so a caller can hold still while it moves. */

@@ -69,7 +69,7 @@ class InputEditorPanelTest {
         menu()
         assertTrue(panel().bottom < middle)
         assertFalse(panel().overlaps(rect(low)))
-        assertEquals(48f * context.resources.displayMetrics.density, panel().height, 1f)
+        assertEquals(44f * context.resources.displayMetrics.density, panel().height, 1f)
         compose.onNodeWithTag("input-editor-size").performClick()
         compose.onNodeWithTag("input-editor-scale").assertIsDisplayed()
         assertFalse(panel().overlaps(compose.onNodeWithTag("input-editor-scale").fetchSemanticsNode().boundsInRoot))
