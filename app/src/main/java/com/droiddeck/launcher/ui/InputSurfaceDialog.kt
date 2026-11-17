@@ -12,28 +12,45 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -42,7 +59,10 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -57,6 +77,7 @@ import com.droiddeck.launcher.R
 import com.droiddeck.launcher.SessionActivity
 import com.droiddeck.launcher.input.*
 import com.droiddeck.launcher.session.SessionState
+import kotlinx.coroutines.delay
 
 internal data class SurfaceSnapshot(val elements: List<InputSurfaceElement>, val actions: Map<String, InputAction>,
     val clicks: Map<String, InputAction>, val scale: Float, val freeScale: Float, val removed: Set<String>)
@@ -89,6 +110,10 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
     private var sizeBase by mutableStateOf<Map<String, InputSurfaceElement>?>(null)
     var toolsExpanded by mutableStateOf(false)
     var toolsAt by mutableStateOf<Pair<Float, Float>?>(null)
+    var sizeOpen by mutableStateOf(false)
+    /** Controls the last add() placed or restored, for the canvas pop-in. */
+    var placed by mutableStateOf<List<String>>(emptyList())
+        private set
     var snap by mutableStateOf(snap)
     var adding by mutableStateOf(false)
     var history by mutableStateOf<List<SurfaceSnapshot>>(emptyList())
@@ -108,6 +133,8 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
         removed != layout.style.removed
     var redoable by mutableStateOf<List<SurfaceSnapshot>>(emptyList())
         private set
+    /** Undo steps that changed something, for the discard prompt. */
+    val changeCount get() = (history + snapshot()).zipWithNext().count { (a, b) -> a != b }
     private fun snapshot() = SurfaceSnapshot(elements, actions, clicks, layoutScale, freeScale, removed)
     fun checkpoint() {
         sliding = null
@@ -154,6 +181,7 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
         if (hidden.isNotEmpty()) {
             removed = removed - hidden.toSet()
             select(hidden)
+            placed = hidden
             return
         }
         val height = when (choice.kind) {
@@ -169,6 +197,7 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
         elements = elements + element
         actions = actions + (element.id to choice.action)
         select(listOf(element.id))
+        placed = listOf(element.id)
     }
     fun scaleAll(percent: Int) {
         if (percent == scale) return
@@ -239,6 +268,7 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
     var revision by remember { mutableIntStateOf(0) }
     var discard by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
+    val toasts = remember { EditorToasts() }
     val target = remember(revision, role) {
         if (host is SessionActivity) host.inputEditorDisplay(role)
         else if (role == InputRole.PRIMARY) host?.window?.decorView?.display
@@ -249,6 +279,16 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
     }
     val remote = target != null && target.displayId != host?.window?.decorView?.display?.displayId
     fun leave() { if (draft.dirty) discard = true else onDismiss() }
+    fun delete() {
+        if (draft.selection.isEmpty()) return
+        val name = draft.visible.selectedGroup(draft.selection)?.let { context.getString(it.label()) }
+            ?: draft.elements.firstOrNull { it.id in draft.selection }?.name.orEmpty()
+        draft.deleteSelection()
+        val mark = draft.history
+        toasts.show(EditorToast(context.getString(R.string.input_editor_deleted, name), Icons.Outlined.Delete,
+            context.getString(R.string.input_editor_undo), mark) { if (draft.history === mark) draft.undo() })
+    }
+    LaunchedEffect(draft.history) { toasts.current?.let { if (it.mark != null && it.mark !== draft.history) toasts.hide(it) } }
     fun save() {
         runCatching {
             InputLibraries.update(context) { latest ->
@@ -258,7 +298,11 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
                     style = l.style.copy(removed = draft.removed.filter { id -> draft.elements.any { it.id == id } }.toSet()))).withPreset(p.copy(elements = draft.actions.filterKeys { id -> draft.elements.any { it.id == id } },
                     clicks = draft.clicks.filterKeys { id -> draft.elements.any { it.id == id && it.hasClick } }))
             }
-        }.onSuccess { onChanged(); onDismiss() }.onFailure { failure = it.message ?: context.getString(R.string.input_save_failed) }
+        }.onSuccess {
+            onChanged()
+            host?.let { showDetachedToast(it, context.getString(R.string.input_editor_saved)) }
+            onDismiss()
+        }.onFailure { failure = it.message ?: context.getString(R.string.input_save_failed) }
     }
     DisposableEffect(manager) {
         val listener = object : DisplayManager.DisplayListener {
@@ -271,7 +315,7 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
     }
     if (remote && host != null) DisposableEffect(target!!.displayId, host) {
         val presentation = SurfaceEditorPresentation(host, target, transparent = host is SessionActivity && role == InputRole.PRIMARY) {
-            SurfaceCanvas(draft, transparent = host is SessionActivity && role == InputRole.PRIMARY)
+            SurfaceCanvas(draft, transparent = host is SessionActivity && role == InputRole.PRIMARY, onDelete = ::delete)
         }
         (host as? SessionActivity)?.inputWindowShown(target.displayId)
         runCatching { presentation.show() }.onFailure { failure = it.message }
@@ -291,33 +335,39 @@ fun InputSurfaceDialog(profile: String, onDismiss: () -> Unit, onChanged: () -> 
         val editorWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         DisposableEffect(editorWindow) {
             editorWindow?.prepareInputEditor()
+            editorWindow?.setWindowAnimations(0)
             if (host is SessionActivity && role == InputRole.PRIMARY) editorWindow?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             onDispose { }
         }
         Surface(Modifier.fillMaxSize(), color = if (host is SessionActivity && role == InputRole.PRIMARY && !remote)
             androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surface) {
-            BackHandler { leave() }
+            BackHandler { if (draft.sizeOpen) draft.sizeOpen = false else leave() }
             when {
                 target == null -> SettingsPage(rememberMenuHost(), savedLayout.name, ::leave) {
                     Text(stringResource(R.string.input_display_unavailable))
                     PrimaryButton(stringResource(R.string.gesture_save_changes)) { save() }
                 }
-                remote -> SettingsPage(rememberMenuHost(), stringResource(R.string.input_editor_remote), ::leave,
-                    lede = if (layoutUsers > 1) stringResource(R.string.input_editor_shared, layoutUsers) else savedLayout.name) {
-                    SurfaceToolbar(draft, ::save, ::leave)
-                    SurfaceSelection(draft)
+                remote -> Box(Modifier.fillMaxSize()) {
+                    SettingsPage(rememberMenuHost(), stringResource(R.string.input_editor_remote), ::leave,
+                        lede = if (layoutUsers > 1) stringResource(R.string.input_editor_shared, layoutUsers) else savedLayout.name) {
+                        EditorMenuBar(draft, ::save, ::leave, top = true)
+                        if (draft.sizeOpen) LayoutSizeCard(draft)
+                        SurfaceSelection(draft, ::delete)
+                    }
+                    EditorToastHost(toasts, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
                 }
                 else -> Box(Modifier.fillMaxSize()) {
-                    SurfaceCanvas(draft, transparent = host is SessionActivity && role == InputRole.PRIMARY)
-                    FloatingSurfaceTools(draft, ::save, ::leave)
+                    SurfaceCanvas(draft, transparent = host is SessionActivity && role == InputRole.PRIMARY, onDelete = ::delete)
+                    FloatingSurfaceTools(draft, toasts, ::save, ::leave)
                 }
             }
         }
     }
     if (draft.adding) AddControlDialog(draft, target?.let(::displayAspect) ?: (16f / 9f))
-    if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text(stringResource(R.string.input_editor_discard)) },
-        confirmButton = { PadTextButton(onClick = onDismiss) { Text(stringResource(R.string.common_ok)) } },
-        dismissButton = { PadTextButton(onClick = { discard = false }) { Text(stringResource(R.string.common_cancel)) } })
+    if (discard) DiscardChangesDialog(stringResource(R.string.input_editor_discard_title),
+        draft.changeCount.let { if (it > 0) pluralStringResource(R.plurals.input_editor_discard_count, it, it) else stringResource(R.string.input_editor_discard_unsaved) },
+        stringResource(R.string.input_editor_keep_editing), stringResource(R.string.input_editor_discard_confirm),
+        onKeep = { discard = false }, onDiscard = onDismiss)
     failure?.let { AlertDialog(onDismissRequest = { failure = null }, title = { Text(stringResource(R.string.input_save_failed)) }, text = { Text(it) },
         confirmButton = { PadTextButton(onClick = { failure = null }) { Text(stringResource(R.string.common_ok)) } }) }
 }
@@ -336,7 +386,7 @@ private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
 }
 
 @Composable
-private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
+private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false, onDelete: () -> Unit) {
     AndroidView(factory = { InputSurfaceEditorView(it) }, modifier = Modifier.fillMaxSize().testTag("input-layout-canvas"),
         update = { view ->
             view.setBackgroundColor(if (transparent) android.graphics.Color.TRANSPARENT else android.graphics.Color.rgb(10, 11, 13))
@@ -344,7 +394,7 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
             view.isEnabled = !draft.adding
             view.onSelect = { draft.select(it) }
             view.onBeginEdit = draft::checkpoint
-            view.onDelete = draft::deleteSelection
+            view.onDelete = onDelete
             view.onChange = { changed ->
                 val byId = changed.associateBy { it.id }
                 draft.elements = draft.elements.map { byId[it.id] ?: it }
@@ -353,101 +403,173 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false) {
         })
 }
 
+private val PillWidth = 240.dp
+
 @Composable
-private fun FloatingSurfaceTools(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+private fun FloatingSurfaceTools(draft: SurfaceDraft, toasts: EditorToasts, onSave: () -> Unit, onLeave: () -> Unit) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInRoot().topLeft }) {
         val density = LocalDensity.current
         val screenWidth = with(density) { maxWidth.toPx() }
         val screenHeight = with(density) { maxHeight.toPx() }
         val margin = with(density) { 8.dp.toPx() }
-        var headerHeight by remember { mutableIntStateOf(0) }
-        var contentHeight by remember { mutableIntStateOf(0) }
+        val handle = with(density) { EditorHandleSize.toPx() }
+        val barHeight = with(density) { EditorBarHeight.toPx() }
         var dragging by remember { mutableStateOf(false) }
         val badge = with(density) { 50.dp.toPx() }
         val selected = draft.visible.boundsOf(draft.selection)?.let {
             SurfaceBounds(it.left, (it.top - badge / screenHeight).coerceAtLeast(0f), (it.right + badge / screenWidth).coerceAtMost(1f), it.bottom)
         }
-        val expandedWidth = with(density) {
-            surfaceToolsWidth(screenWidth, margin, selected, minOf(280.dp, maxWidth - 16.dp).toPx(), minOf(420.dp, maxWidth - 16.dp).toPx()).toDp()
-        }
-        val targetWidth = with(density) { (if (draft.toolsExpanded) expandedWidth else 152.dp).toPx() }
-        val targetHeight = (headerHeight.toFloat().coerceAtLeast(with(density) { 52.dp.toPx() }) + if (draft.toolsExpanded) contentHeight else 0)
-            .coerceAtMost(screenHeight - 2 * margin)
         val bounds = draft.visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) }
-        val (x, y) = placeSurfaceTools(screenWidth, screenHeight, targetWidth, targetHeight, margin, bounds,
-            if (dragging) null else selected, draft.toolsAt)
-        val position by rememberUpdatedState(Offset(x, y))
-        val panelWidth by animateDpAsState(if (draft.toolsExpanded) expandedWidth else 152.dp, label = "input-tools-width")
-        Surface(Modifier.offset { IntOffset(x.roundToInt(), y.roundToInt()) }
-            .width(panelWidth).clipToBounds()
-            .heightIn(max = maxHeight - 16.dp).testTag("input-editor-panel"),
-            shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp, shadowElevation = 10.dp) {
-            Column {
-                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("input-editor-tools").onSizeChanged { headerHeight = it.height }
-                    .pointerInput(screenWidth, screenHeight, targetWidth, targetHeight) {
-                        var dragPosition = Offset.Zero
-                        detectDragGestures(onDragStart = { dragPosition = position; dragging = true },
-                            onDragEnd = { dragging = false }, onDragCancel = { dragging = false }) { change, delta ->
-                            change.consume()
-                            dragPosition = Offset((dragPosition.x + delta.x).coerceIn(margin, (screenWidth - targetWidth - margin).coerceAtLeast(margin)),
-                                (dragPosition.y + delta.y).coerceIn(margin, (screenHeight - targetHeight - margin).coerceAtLeast(margin)))
-                            draft.toolsAt = dragPosition.x / screenWidth to dragPosition.y / screenHeight
-                        }
-                    }
-                    .clickable { draft.toolsExpanded = !draft.toolsExpanded }.padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("⠿", color = MaterialTheme.colorScheme.primary)
-                    Text(stringResource(if (draft.toolsExpanded) R.string.input_hide_tools else R.string.input_tools), style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                }
-                AnimatedVisibility(draft.toolsExpanded, enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()) {
-                    Column(Modifier.requiredWidth(expandedWidth).onSizeChanged { contentHeight = it.height }.verticalScroll(rememberScrollState())) {
-                        HorizontalDivider()
-                        SurfaceToolbar(draft, onSave, onLeave)
-                    }
-                }
+        val (hx, hy) = placeSurfaceTools(screenWidth, screenHeight, handle, handle, margin, bounds, if (dragging) null else selected, draft.toolsAt)
+        val handleAt by rememberUpdatedState(Offset(hx, hy))
+        val open = draft.toolsExpanded
+        var barSize by remember { mutableStateOf(IntSize.Zero) }
+        var chip by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        val (bx, by) = dockSurfaceMenu(screenWidth, screenHeight, barSize.width.toFloat(), barHeight, margin, bounds, selected,
+            menuOnTop(hy, handle, screenHeight))
+        val top = menuOnTop(by, barHeight, screenHeight)
+        val barAt = remember { Animatable(Offset(bx, by), Offset.VectorConverter) }
+        var settled by remember { mutableStateOf(false) }
+        LaunchedEffect(bx, by, open, barSize.width) {
+            val target = Offset(bx, by)
+            if (open && settled) barAt.animateTo(target, Motion.tw(260))
+            else { barAt.snapTo(target); settled = open && barSize.width > 0 }
+        }
+        val menu = if (open) SurfaceBounds(bx, by, bx + barSize.width, by + barHeight) else SurfaceBounds(hx, hy, hx + handle, hy + handle)
+        val handleFocus = remember { FocusRequester() }
+        val collapseFocus = remember { FocusRequester() }
+        var menuFocused by remember { mutableStateOf(false) }
+        var moveFocus by remember { mutableStateOf(false) }
+        fun toggle() { moveFocus = menuFocused; draft.sizeOpen = false; draft.toolsExpanded = !open }
+        var ready by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { withFrameNanos { }; delay(Motion.ms(120).toLong()); ready = true }
+        LaunchedEffect(open) {
+            if (moveFocus) { withFrameNanos { }; runCatching { (if (open) collapseFocus else handleFocus).requestFocus() } }
+            moveFocus = false
+        }
+        val rise = with(density) { 16.dp.roundToPx() }
+        AnimatedVisibility(!open && ready, Modifier.offset { IntOffset(hx.roundToInt(), hy.roundToInt()) }.testTag("input-editor-panel"),
+            enter = fadeIn(Motion.tw(160)) + scaleIn(Motion.tw(160, easing = EditorMotion.Pop), initialScale = 0.8f),
+            exit = fadeOut(Motion.tw(120)), label = "editor-handle") {
+            Box(Modifier.editorGlass(CircleShape)) {
+                EditorIconButton(if (hy + handle / 2 < screenHeight / 2) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess,
+                    stringResource(R.string.input_editor_open_menu),
+                    Modifier.testTag("input-editor-tools").focusRequester(handleFocus).onFocusChanged { menuFocused = it.isFocused }
+                        .pointerInput(screenWidth, screenHeight) {
+                            var dragPosition = Offset.Zero
+                            detectDragGestures(onDragStart = { dragPosition = handleAt; dragging = true },
+                                onDragEnd = { dragging = false }, onDragCancel = { dragging = false }) { change, delta ->
+                                change.consume()
+                                dragPosition = Offset((dragPosition.x + delta.x).coerceIn(margin, (screenWidth - handle - margin).coerceAtLeast(margin)),
+                                    (dragPosition.y + delta.y).coerceIn(margin, (screenHeight - handle - margin).coerceAtLeast(margin)))
+                                draft.toolsAt = dragPosition.x / screenWidth to dragPosition.y / screenHeight
+                            }
+                        }, onClick = ::toggle)
             }
         }
+        AnimatedVisibility(open, Modifier.offset { IntOffset(barAt.value.x.roundToInt(), barAt.value.y.roundToInt()) }.testTag("input-editor-panel"),
+            enter = fadeIn(Motion.tw(260)) + slideInVertically(Motion.tw(260)) { if (top) -rise else rise },
+            exit = fadeOut(Motion.tw(180)), label = "editor-menu") {
+            EditorMenuBar(draft, onSave, onLeave, top, Modifier.widthIn(max = maxWidth - 16.dp).onSizeChanged { barSize = it },
+                collapse = ::toggle, collapseModifier = Modifier.focusRequester(collapseFocus).onFocusChanged { menuFocused = it.isFocused },
+                onChipPlaced = { chip = it.translate(-origin) })
+        }
+        var cardSize by remember { mutableStateOf(IntSize.Zero) }
+        val cardGap = with(density) { 8.dp.toPx() }
+        val cardX = ((chip?.center?.x ?: (bx + barSize.width / 2)) - cardSize.width / 2)
+            .coerceIn(margin, (screenWidth - cardSize.width - margin).coerceAtLeast(margin))
+        val cardY = if (top) by + barHeight + cardGap else by - cardGap - cardSize.height
+        val card = SurfaceBounds(cardX, cardY, cardX + cardSize.width, cardY + cardSize.height).takeIf { open && draft.sizeOpen }
+        AnimatedVisibility(open && draft.sizeOpen, Modifier.offset { IntOffset(cardX.roundToInt(), cardY.roundToInt()) }.onSizeChanged { cardSize = it },
+            enter = fadeIn(Motion.tw(160)) + scaleIn(Motion.tw(160, easing = EditorMotion.Pop), initialScale = 0.94f),
+            exit = fadeOut(Motion.tw(120)), label = "layout-size") { LayoutSizeCard(draft) }
+        var hint by remember { mutableStateOf(false) }
+        val idle = draft.selection.isEmpty()
+        LaunchedEffect(idle) {
+            hint = idle
+            if (idle) { delay(EditorMotion.HINT_MS); hint = false }
+        }
+        var hintSize by remember { mutableStateOf(IntSize.Zero) }
+        val gap = with(density) { 10.dp.toPx() }
+        val hintBelow = if (open) top else hy + handle / 2 < screenHeight / 2
+        val hintX = (menu.centerX - hintSize.width / 2).coerceIn(margin, (screenWidth - hintSize.width - margin).coerceAtLeast(margin))
+        val hintY = if (hintBelow) menu.bottom + gap else menu.top - gap - hintSize.height
+        EditorHint(stringResource(R.string.input_editor_tap_hint), hint && !draft.adding,
+            Modifier.offset { IntOffset(hintX.roundToInt(), hintY.roundToInt()) }.onSizeChanged { hintSize = it }.testTag("input-editor-hint"))
         if (selected != null) {
+            val pillWidth = with(density) { PillWidth.toPx() }
             var pillHeight by remember { mutableIntStateOf(0) }
-            val pillWidth = 240.dp
-            val (px, py) = placeSelectionPill(screenWidth, screenHeight, with(density) { pillWidth.toPx() },
-                pillHeight.toFloat().takeIf { it > 0f } ?: with(density) { 120.dp.toPx() }, margin, with(density) { 12.dp.toPx() },
-                SurfaceBounds(selected.left * screenWidth, selected.top * screenHeight, selected.right * screenWidth, selected.bottom * screenHeight),
-                listOf(SurfaceBounds(x, y, x + targetWidth, y + targetHeight)))
-            Surface(Modifier.offset { IntOffset(px.roundToInt(), py.roundToInt()) }.width(pillWidth).onSizeChanged { pillHeight = it.height }
-                .testTag("input-selection-pill"), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp, shadowElevation = 10.dp) {
-                Column(Modifier.padding(vertical = 4.dp)) { SelectionSliders(draft) }
+            var sliding by remember { mutableStateOf(false) }
+            val sel = SurfaceBounds(selected.left * screenWidth, selected.top * screenHeight, selected.right * screenWidth, selected.bottom * screenHeight)
+            val placed = placeSelectionPill(screenWidth, screenHeight, pillWidth, pillHeight.toFloat().takeIf { it > 0f } ?: with(density) { 96.dp.toPx() },
+                margin, with(density) { 12.dp.toPx() }, sel, listOfNotNull(menu, card))
+            val held = remember { arrayOf(placed) }
+            if (!sliding) held[0] = placed
+            val (px, py) = held[0]
+            val shift = with(density) { 16.dp.toPx() }
+            val (dx, dy) = when {
+                px + pillWidth <= sel.left -> -shift to 0f
+                px >= sel.right -> shift to 0f
+                py >= sel.bottom -> 0f to shift
+                else -> 0f to -shift
+            }
+            key(draft.selection) {
+                val appear = remember { Animatable(0f) }
+                LaunchedEffect(Unit) { appear.animateTo(1f, Motion.tw(260, 120)) }
+                Column(Modifier.offset { IntOffset(px.roundToInt(), py.roundToInt()) }.width(PillWidth).onSizeChanged { pillHeight = it.height }
+                    .graphicsLayer { alpha = appear.value; translationX = (1 - appear.value) * dx; translationY = (1 - appear.value) * dy }
+                    .testTag("input-selection-pill").editorGlass(RoundedCornerShape(20.dp)).padding(4.dp)) {
+                    SelectionSliders(draft) { sliding = it }
+                }
             }
         }
+        EditorToastHost(toasts, Modifier.align(Alignment.BottomCenter).padding(bottom = if (open && !top) EditorBarHeight + 16.dp else 14.dp))
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () -> Unit) {
+private fun EditorMenuBar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () -> Unit, top: Boolean, modifier: Modifier = Modifier,
+    collapse: (() -> Unit)? = null, collapseModifier: Modifier = Modifier, onChipPlaced: (androidx.compose.ui.geometry.Rect) -> Unit = {}) {
     val context = LocalContext.current
-    FlowRow(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SecondaryButton(stringResource(R.string.common_cancel), compact = true, onClick = onLeave)
-        SecondaryButton(stringResource(R.string.input_editor_add), enabled = draft.canAdd, compact = true) { draft.adding = true }
-        SecondaryButton(stringResource(R.string.input_editor_undo), enabled = draft.history.isNotEmpty(), compact = true) { draft.undo() }
-        SecondaryButton(stringResource(R.string.input_editor_redo), enabled = draft.redoable.isNotEmpty(), compact = true) { draft.redo() }
-        if (draft.defaults != null) SecondaryButton(stringResource(R.string.input_reset_layout), enabled = draft.resettable, compact = true) { draft.resetLayout() }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(draft.snap, { draft.snap = it; ControllerPrefs.setSnap(context, it) })
-            Text(stringResource(R.string.ctrl_editor_snap))
+    val sizeLabel = stringResource(R.string.input_editor_layout_size)
+    Row(modifier.height(EditorBarHeight).editorGlass(RoundedCornerShape(24.dp)).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (collapse != null) EditorIconButton(if (top) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, stringResource(R.string.input_editor_hide_menu),
+            collapseModifier.testTag("input-editor-tools"), onClick = collapse)
+        EditorIconButton(Icons.Filled.Close, stringResource(R.string.common_close), Modifier.testTag("input-editor-close"), onClick = onLeave)
+        EditorIconButton(Icons.AutoMirrored.Filled.Undo, stringResource(R.string.input_editor_undo), Modifier.testTag("input-editor-undo"),
+            enabled = draft.history.isNotEmpty()) { draft.undo() }
+        EditorIconButton(Icons.AutoMirrored.Filled.Redo, stringResource(R.string.input_editor_redo), Modifier.testTag("input-editor-redo"),
+            enabled = draft.redoable.isNotEmpty()) { draft.redo() }
+        EditorBarDivider()
+        EditorChip(stringResource(R.string.input_editor_add), enabled = draft.canAdd, active = draft.adding) { draft.adding = true }
+        if (draft.defaults != null) EditorIconButton(Icons.Filled.RestartAlt, stringResource(R.string.input_reset_layout), Modifier.testTag("input-editor-reset"),
+            enabled = draft.resettable) { draft.resetLayout() }
+        EditorIconButton(Icons.Filled.GridOn, stringResource(R.string.ctrl_editor_snap), Modifier.testTag("input-editor-snap"), checked = draft.snap) {
+            draft.snap = !draft.snap
+            ControllerPrefs.setSnap(context, draft.snap)
         }
-        PrimaryButton(stringResource(R.string.gesture_save_changes), compact = true, onClick = onSave)
+        if (draft.elements.isNotEmpty()) EditorChip("${draft.scale}%", Modifier.semantics { contentDescription = sizeLabel }.testTag("input-editor-size")
+            .onGloballyPositioned { onChipPlaced(it.boundsInRoot()) }, active = draft.sizeOpen,
+            trailing = if (top) Icons.Filled.ExpandMore else Icons.Filled.ExpandLess) { draft.sizeOpen = !draft.sizeOpen }
+        EditorSaveButton(stringResource(R.string.input_editor_save), draft.dirty, Modifier.padding(start = 4.dp).testTag("input-editor-save"), onSave)
     }
-    if (draft.elements.isNotEmpty()) SliderRow(stringResource(R.string.ctrl_size), null, draft.scale, 80..125, step = 5,
-        format = { "$it%" }, modifier = Modifier.testTag("input-editor-scale")) { draft.scaleAll(it) }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SurfaceSelection(draft: SurfaceDraft) {
+private fun LayoutSizeCard(draft: SurfaceDraft) {
+    val focus = remember { FocusRequester() }
+    val keys = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    Box(Modifier.width(280.dp).editorGlass(RoundedCornerShape(16.dp)).controllerBack { draft.sizeOpen = false }.padding(4.dp)) {
+        PillSlider(stringResource(R.string.input_editor_layout_size), draft.scale, 80..125, 5,
+            Modifier.focusRequester(focus).testTag("input-editor-scale"), labelWidth = 84.dp) { draft.scaleAll(it) }
+    }
+    LaunchedEffect(Unit) { if (keys) { withFrameNanos { }; runCatching { focus.requestFocus() } } }
+}
+
+@Composable
+private fun SurfaceSelection(draft: SurfaceDraft, onDelete: () -> Unit) {
     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val group = draft.visible.selectedGroup(draft.selection)
         val e = draft.element
@@ -455,30 +577,27 @@ private fun SurfaceSelection(draft: SurfaceDraft) {
             group != null -> {
                 Text(stringResource(group.label()), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(R.string.input_group_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SecondaryButton(stringResource(R.string.input_delete_element), compact = true, modifier = Modifier.testTag("input-remove-selection")) { draft.deleteSelection() }
+                SecondaryButton(stringResource(R.string.input_delete_element), compact = true, modifier = Modifier.testTag("input-remove-selection"), onClick = onDelete)
             }
             e != null -> {
                 Text(e.name, style = MaterialTheme.typography.titleMedium)
-                SecondaryButton(stringResource(R.string.input_delete_element), compact = true, modifier = Modifier.testTag("input-remove-selection")) { draft.deleteSelection() }
+                SecondaryButton(stringResource(R.string.input_delete_element), compact = true, modifier = Modifier.testTag("input-remove-selection"), onClick = onDelete)
             }
-            else -> Text(stringResource(R.string.input_editor_hint))
+            else -> Text(stringResource(R.string.input_editor_tap_hint))
         }
         if (group != null || e != null) SelectionSliders(draft)
     }
 }
 
 @Composable
-private fun SelectionSliders(draft: SurfaceDraft) {
+private fun SelectionSliders(draft: SurfaceDraft, onSliding: (Boolean) -> Unit = {}) {
     draft.selectionSize?.let { size ->
-        val range = minOf(SELECTION_SIZES.first, size / 5 * 5)..maxOf(SELECTION_SIZES.last, (size + 4) / 5 * 5)
-        SliderRow(stringResource(R.string.input_selection_size), null, size, range, step = 5,
-            format = { "$it%" }, modifier = Modifier.testTag("input-selection-size")) { draft.resizeSelection(it) }
+        PillSlider(stringResource(R.string.input_selection_size), size, selectionSizeRange(size), 5, Modifier.testTag("input-selection-size"),
+            onSliding = onSliding) { draft.resizeSelection(it) }
     }
-    SliderRow(stringResource(R.string.ctrl_opacity), null, (draft.selectionOpacity * 100).roundToInt().coerceIn(20, 100), 20..100, step = 5,
-        format = { "$it%" }, modifier = Modifier.testTag("input-selection-opacity")) { draft.setSelectionOpacity(it) }
+    PillSlider(stringResource(R.string.ctrl_opacity), (draft.selectionOpacity * 100).roundToInt().coerceIn(20, 100), 20..100, 5,
+        Modifier.testTag("input-selection-opacity"), onSliding = onSliding) { draft.setSelectionOpacity(it) }
 }
-
-private val SELECTION_SIZES = 40..250
 
 private fun InputControlGroup.label() = when (this) {
     InputControlGroup.DPAD -> R.string.input_group_dpad

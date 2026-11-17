@@ -130,4 +130,19 @@
     <string name="input_diagonal_neighbors">Neighboring directions</string>
     <string name="input_imported_keys_hint">Your old screen keys are saved as imported profiles below. Select one to use or edit it. Your current profile selections have been kept.</string>
     <string name="input_import_failed">The old screen keys could not be imported automatically. The original settings have been kept.</string>
+    <string name="input_editor_open_menu">Open menu</string>
+    <string name="input_editor_hide_menu">Hide menu</string>
+    <string name="input_editor_save">Save</string>
+    <string name="input_editor_layout_size">Layout size</string>
+    <string name="input_editor_tap_hint">Tap a control to edit it. Drag to move.</string>
+    <string name="input_editor_saved">Layout saved</string>
+    <string name="input_editor_deleted">%1$s deleted</string>
+    <string name="input_editor_discard_title">Discard changes?</string>
+    <plurals name="input_editor_discard_count">
+        <item quantity="one">You have %d unsaved change to this layout.</item>
+        <item quantity="other">You have %d unsaved changes to this layout.</item>
+    </plurals>
+    <string name="input_editor_discard_unsaved">You have unsaved changes to this layout.</string>
+    <string name="input_editor_keep_editing">Keep editing</string>
+    <string name="input_editor_discard_confirm">Discard</string>
 </resources>
