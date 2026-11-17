@@ -24,6 +24,8 @@
     <string name="input_command_qam">Apri l\'accesso rapido di Steam</string>
     <string name="input_remove_element">Rimuovi controllo</string>
     <string name="input_add_element">Aggiungi controllo</string>
+    <string name="input_add_tab_buttons">Pulsanti</string>
+    <string name="input_add_tab_groups">Gruppi</string>
     <string name="input_extra_keys">Tasti specifici del dispositivo</string>
     <string name="input_capture">Assegna un tasto fisico</string>
     <string name="input_capture_confirm">Rilascia il tasto, poi scegli Modifica, Riprova o Annulla. B o Indietro annulla dopo il rilascio.</string>

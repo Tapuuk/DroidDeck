@@ -49,14 +49,14 @@ fun List<InputSurfaceElement>.pressSelection(current: List<String>, hit: String?
     if (hit == null) return emptyList()
     val group = groupOf(hit)
     return when {
-        current.toSet() == group.toSet() -> current
+        current.toSet() == group.toSet() || current.size > 1 && hit in current -> current
         current.size == 1 && current.first() in group -> listOf(hit)
         else -> group
     }
 }
 
 fun List<InputSurfaceElement>.tapSelection(before: List<String>, hit: String?): List<String> {
-    if (hit != null && before.size > 1 && before.toSet() == groupOf(hit).toSet()) return listOf(hit)
+    if (hit != null && before.size > 1 && hit in before) return listOf(hit)
     return pressSelection(before, hit)
 }
 

@@ -24,6 +24,8 @@
     <string name="input_command_qam">Steam त्वरित पहुँच खोलें</string>
     <string name="input_remove_element">नियंत्रण हटाएँ</string>
     <string name="input_add_element">नियंत्रण जोड़ें</string>
+    <string name="input_add_tab_buttons">बटन</string>
+    <string name="input_add_tab_groups">समूह</string>
     <string name="input_extra_keys">डिवाइस-विशिष्ट बटन</string>
     <string name="input_capture">भौतिक बटन असाइन करें</string>
     <string name="input_capture_confirm">बटन छोड़ें, फिर संपादित करें, पुनः प्रयास करें या रद्द करें चुनें। छोड़ने के बाद B या वापस रद्द करता है।</string>

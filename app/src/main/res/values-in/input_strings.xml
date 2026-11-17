@@ -24,6 +24,8 @@
     <string name="input_command_qam">Buka akses cepat Steam</string>
     <string name="input_remove_element">Hapus kontrol</string>
     <string name="input_add_element">Tambah kontrol</string>
+    <string name="input_add_tab_buttons">Tombol</string>
+    <string name="input_add_tab_groups">Grup</string>
     <string name="input_extra_keys">Tombol khusus perangkat</string>
     <string name="input_capture">Tetapkan tombol fisik</string>
     <string name="input_capture_confirm">Lepaskan tombol, lalu pilih Edit, Coba lagi, atau Batal. B atau Kembali membatalkan setelah dilepas.</string>

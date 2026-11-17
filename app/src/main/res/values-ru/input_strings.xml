@@ -24,6 +24,8 @@
     <string name="input_command_qam">Открыть быстрый доступ Steam</string>
     <string name="input_remove_element">Удалить элемент</string>
     <string name="input_add_element">Добавить элемент</string>
+    <string name="input_add_tab_buttons">Кнопки</string>
+    <string name="input_add_tab_groups">Группы</string>
     <string name="input_extra_keys">Кнопки конкретного устройства</string>
     <string name="input_capture">Назначить физическую кнопку</string>
     <string name="input_capture_confirm">Отпустите кнопку и выберите «Изменить», «Повторить» или «Отмена». B или «Назад» отменяет после отпускания.</string>

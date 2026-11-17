@@ -24,6 +24,8 @@
     <string name="input_command_qam">Buka akses pantas Steam</string>
     <string name="input_remove_element">Alih keluar kawalan</string>
     <string name="input_add_element">Tambah kawalan</string>
+    <string name="input_add_tab_buttons">Butang</string>
+    <string name="input_add_tab_groups">Kumpulan</string>
     <string name="input_extra_keys">Butang khusus peranti</string>
     <string name="input_capture">Tetapkan butang fizikal</string>
     <string name="input_capture_confirm">Lepaskan butang, kemudian pilih Edit, Cuba lagi atau Batal. B atau Kembali membatalkan selepas dilepaskan.</string>

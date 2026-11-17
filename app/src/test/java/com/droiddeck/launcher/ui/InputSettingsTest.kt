@@ -621,6 +621,8 @@ class InputSettingsTest {
 
     private fun choice(key: String) = inputAddChoices(context, trackpads = true).first { it.key == key }
 
+    private fun group(key: String) = inputAddGroups(context).first { it.key == key }
+
     private fun SurfaceDraft.addOne(choice: InputAddChoice): InputSurfaceElement {
         val before = elements.map { it.id }.toSet()
         add(choice, 16f / 9f)
@@ -637,7 +639,7 @@ class InputSettingsTest {
             Triple(choice("control-a"), InputAction.Native(InputControl.A), "A"),
             Triple(choice("control-lt"), InputAction.Native(InputControl.LT), "LT"),
             Triple(choice("control-ls"), InputAction.Native(InputControl.LS), InputControl.LS.label),
-            Triple(choice("control-dpad"), InputAction.Native(), context.getString(R.string.input_group_dpad)),
+            Triple(choice("control-up"), InputAction.Native(InputControl.UP), InputControl.UP.label),
             Triple(choice("control-guide"), InputAction.Native(InputControl.GUIDE), InputControl.GUIDE.label),
             Triple(choice("control-right-pad"), InputAction.Native(InputControl.RIGHT_PAD), InputControl.RIGHT_PAD.label),
         )
@@ -650,7 +652,8 @@ class InputSettingsTest {
             assertTrue(choice.key, action.validFor(added))
             assertEquals(choice.key, action, draft.preset.copy(elements = draft.actions).action(added))
         }
-        assertEquals(listOf("a", "b", "x", "y", "dpad", "ls", "rs", "lb", "rb", "lt", "rt", "l3", "r3", "l4", "r4", "l5", "r5", "select", "start", "guide", "qam", "keyboard",
+        assertEquals(103, draft.addOne(choice("control-up")).icon)
+        assertEquals(listOf("a", "b", "x", "y", "up", "down", "left", "right", "ls", "rs", "lb", "rb", "lt", "rt", "l3", "r3", "l4", "r4", "l5", "r5", "select", "start", "guide", "qam", "keyboard",
             "left-pad", "right-pad"), inputAddChoices(context, trackpads = true).map { it.key.removePrefix("control-") })
         assertTrue(inputAddChoices(context, trackpads = false).none { it.kind == InputElementKind.TRACKPAD })
     }
@@ -677,9 +680,14 @@ class InputSettingsTest {
         assertTrue(guide.id !in draft.removed)
         val dpad = original.filter { it.id in listOf("legacy:up", "legacy:right", "legacy:down", "legacy:left") }.map { it.id }
         draft.select(dpad); draft.deleteSelection()
-        draft.add(choice("control-dpad"), 16f / 9f)
+        draft.add(choice("control-up"), 16f / 9f)
+        assertEquals(original, draft.elements)
+        assertEquals(listOf("legacy:up"), draft.selection)
+        assertEquals(dpad - "legacy:up", dpad.filter { it in draft.removed })
+        draft.add(group("group-dpad"), 16f / 9f)
         assertEquals(original, draft.elements)
         assertTrue(dpad.none { it in draft.removed })
+        assertEquals(dpad.toSet(), draft.selection.toSet())
         val (deck, grip) = deckDraft()
         val stock = deck.elements
         deck.deleteSelection()
@@ -708,6 +716,47 @@ class InputSettingsTest {
         assertEquals(InputButtonIcons.KEYBOARD, another.icon)
         assertEquals(context.getString(R.string.input_add_keyboard), another.name)
         assertTrue(InputAction.Command(InputCommand.KEYBOARD).validFor(another))
+    }
+
+    @Test fun addingAGroupAddsANewSetLaidOutLikeTheStockOneAsOneUndoStep() {
+        val draft = overlayDraft()
+        assertEquals(listOf("group-dpad", "group-face", "group-left-shoulder", "group-right-shoulder"), inputAddGroups(context).map { it.key })
+        val before = draft.elements
+        draft.add(group("group-face"), 16f / 9f)
+        val added = draft.elements.filter { e -> before.none { it.id == e.id } }
+        assertEquals(4, added.size)
+        assertEquals(added.map { it.id }, draft.selection)
+        assertEquals(listOf(InputControl.Y, InputControl.B, InputControl.A, InputControl.X).map { InputAction.Native(it) }, added.map { draft.actions[it.id] })
+        val (y, b, a, x) = added
+        assertEquals(y.x, a.x, 1e-5f)
+        assertTrue(y.y < a.y && x.x < b.x)
+        assertEquals(x.y, b.y, 1e-5f)
+        assertTrue(added.none { e -> before.any { bounds(it).overlaps(bounds(e)) } })
+        draft.undo()
+        assertEquals(before, draft.elements)
+        draft.add(group("group-left-shoulder"), 16f / 9f)
+        val (lt, lb) = draft.elements.drop(before.size)
+        assertEquals(listOf("LT", "LB"), listOf(lt.name, lb.name))
+        assertTrue(lt.x < lb.x)
+        assertEquals(InputButtonShape.PILL, lt.buttonShape)
+    }
+
+    @Test fun aGroupThatDoesNotFitTheLimitCannotBeAdded() {
+        val draft = overlayDraft()
+        while (draft.elements.size < 61) draft.addOne(choice("control-a"))
+        assertFalse(draft.available(group("group-dpad")))
+        assertTrue(draft.available(group("group-left-shoulder")))
+        val full = draft.elements
+        draft.add(group("group-dpad"), 16f / 9f)
+        assertEquals(full, draft.elements)
+        draft.add(group("group-left-shoulder"), 16f / 9f)
+        assertEquals(63, draft.elements.size)
+        assertFalse(draft.available(group("group-right-shoulder")))
+        draft.select(listOf("legacy:rb")); draft.deleteSelection()
+        assertTrue(draft.available(group("group-right-shoulder")))
+        draft.add(group("group-right-shoulder"), 16f / 9f)
+        assertTrue(draft.visible.any { it.id == "legacy:rb" })
+        assertEquals(63, draft.elements.size)
     }
 
     @Test fun aFullLayoutCanStillRestoreADeletedStockControl() {

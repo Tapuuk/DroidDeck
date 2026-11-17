@@ -24,6 +24,8 @@
     <string name="input_command_qam">Ouvrir l\'accès rapide Steam</string>
     <string name="input_remove_element">Supprimer le contrôle</string>
     <string name="input_add_element">Ajouter un contrôle</string>
+    <string name="input_add_tab_buttons">Boutons</string>
+    <string name="input_add_tab_groups">Groupes</string>
     <string name="input_extra_keys">Boutons propres à l\'appareil</string>
     <string name="input_capture">Assigner un bouton physique</string>
     <string name="input_capture_confirm">Relâchez le bouton, puis choisissez Modifier, Réessayer ou Annuler. B ou Retour annule après le relâchement.</string>

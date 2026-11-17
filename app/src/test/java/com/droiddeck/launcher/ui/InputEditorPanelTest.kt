@@ -163,6 +163,20 @@ class InputEditorPanelTest {
         compose.onNodeWithTag("input-selection-pill").assertExists()
     }
 
+    @Test fun theGroupsTabAddsAWholeSet() {
+        open()
+        menu()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
+        compose.onNodeWithTag("input-add-tab-buttons").assertIsSelected()
+        compose.onNodeWithTag("input-add-control-up").assertExists()
+        compose.onNodeWithTag("input-add-tab-groups").performClick()
+        compose.onNodeWithTag("input-add-control-up").assertDoesNotExist()
+        for (group in inputAddGroups(context)) compose.onNodeWithTag("input-add-${group.key}").assertExists().assertHasClickAction()
+        compose.onNodeWithTag("input-add-group-dpad").performClick()
+        compose.onNodeWithTag("input-add-panel").assertDoesNotExist()
+        compose.onNodeWithTag("input-selection-pill").assertExists()
+    }
+
     @Test fun deletingShowsAToastWhoseUndoBringsTheControlBack() {
         val layout = open()
         val start = layout.element("legacy:start")

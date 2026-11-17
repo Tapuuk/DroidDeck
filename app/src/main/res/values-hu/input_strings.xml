@@ -24,6 +24,8 @@
     <string name="input_command_qam">Steam gyorselérés megnyitása</string>
     <string name="input_remove_element">Vezérlőelem eltávolítása</string>
     <string name="input_add_element">Vezérlőelem hozzáadása</string>
+    <string name="input_add_tab_buttons">Gombok</string>
+    <string name="input_add_tab_groups">Csoportok</string>
     <string name="input_extra_keys">Eszközspecifikus gombok</string>
     <string name="input_capture">Fizikai gomb hozzárendelése</string>
     <string name="input_capture_confirm">Engedje el a gombot, majd válassza a Szerkesztés, Újra vagy Mégse lehetőséget. A B vagy a Vissza elengedés után megszakítja.</string>

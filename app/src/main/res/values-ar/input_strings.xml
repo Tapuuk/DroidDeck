@@ -24,6 +24,8 @@
     <string name="input_command_qam">فتح الوصول السريع في Steam</string>
     <string name="input_remove_element">إزالة عنصر التحكم</string>
     <string name="input_add_element">إضافة عنصر تحكم</string>
+    <string name="input_add_tab_buttons">الأزرار</string>
+    <string name="input_add_tab_groups">المجموعات</string>
     <string name="input_extra_keys">أزرار خاصة بالجهاز</string>
     <string name="input_capture">تعيين زر فعلي</string>
     <string name="input_capture_confirm">حرّر الزر ثم اختر تحرير أو إعادة المحاولة أو إلغاء. يلغي B أو رجوع بعد التحرير.</string>

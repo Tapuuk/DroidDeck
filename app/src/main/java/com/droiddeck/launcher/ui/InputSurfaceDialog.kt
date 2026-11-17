@@ -184,19 +184,46 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
             return
         }
         val height = when (choice.kind) {
-            InputElementKind.STICK, InputElementKind.DPAD -> .36f
+            InputElementKind.STICK -> .36f
             InputElementKind.TRACKPAD -> .5f
             else -> .16f
         }
-        val pill = choice.kind == InputElementKind.TRIGGER || choice.control == InputControl.LB || choice.control == InputControl.RB
-        val width = (height / aspect * if (pill) 2f else 1f).coerceIn(.03f, 1f)
+        val width = (height / aspect * if (choice.pill) 2f else 1f).coerceIn(.03f, 1f)
         val (x, y) = freeSurfaceSpot(visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) }, width, height)
-        val element = InputSurfaceElement(choice.kind.control, x, y, width, height, newInputId(), choice.kind, choice.name,
-            icon = choice.icon, buttonShape = if (pill) InputButtonShape.PILL else InputButtonShape.CIRCLE)
-        elements = elements + element
-        actions = actions + (element.id to choice.action)
-        select(listOf(element.id))
-        placed = listOf(element.id)
+        put(listOf(choice to SurfaceBounds(x, y, x + width, y + height)))
+    }
+    private fun hidden(group: InputAddGroup) = group.members.flatMap(::hidden)
+    fun available(group: InputAddGroup) = hidden(group).isNotEmpty() || elements.size + group.members.size <= 64
+    /** Brings back the group's deleted stock controls, or else adds a new set laid out like the stock one, selected as one. */
+    fun add(group: InputAddGroup, aspect: Float) {
+        if (!available(group)) return
+        checkpoint()
+        val hidden = hidden(group)
+        if (hidden.isNotEmpty()) {
+            removed = removed - hidden.toSet()
+            select(visible.groupOf(hidden.first()))
+            placed = hidden
+            return
+        }
+        val stock = group.members.map { stockGeometry[it.stock.first()] }
+        val rects = if (stock.all { it != null }) stock.map { SurfaceBounds(it!!.x, it.y, it.x + it.width, it.y + it.height) }
+            else group.arrangement.map { SurfaceBounds(it.left * group.size / aspect, it.top * group.size, it.right * group.size / aspect, it.bottom * group.size) }
+        val left = rects.minOf { it.left }
+        val top = rects.minOf { it.top }
+        val (x, y) = freeSurfaceSpot(visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) },
+            rects.maxOf { it.right } - left, rects.maxOf { it.bottom } - top)
+        put(group.members.zip(rects.map { SurfaceBounds(it.left - left + x, it.top - top + y, it.right - left + x, it.bottom - top + y) }))
+    }
+    private fun put(added: List<Pair<InputAddChoice, SurfaceBounds>>) {
+        val created = added.map { (choice, b) ->
+            InputSurfaceElement(choice.kind.control, b.left, b.top, b.width, b.height, newInputId(), choice.kind, choice.name,
+                icon = choice.icon, buttonShape = if (choice.pill) InputButtonShape.PILL else InputButtonShape.CIRCLE) to choice.action
+        }
+        elements = elements + created.map { it.first }
+        actions = actions + created.map { it.first.id to it.second }
+        val ids = created.map { it.first.id }
+        select(ids)
+        placed = ids
     }
     fun scaleAll(percent: Int) {
         if (percent == scale) return
@@ -376,8 +403,10 @@ private fun AddControlDialog(draft: SurfaceDraft, aspect: Float) {
     val context = LocalContext.current
     val trackpads = draft.layout.supports(InputRole.SECONDARY) || draft.elements.any { it.kind == InputElementKind.TRACKPAD }
     val choices = remember(trackpads) { inputAddChoices(context, trackpads) }
-    AddControlPanel(choices, draft::available, draft.layout.style, onAdd = { draft.add(it, aspect); draft.adding = false; draft.toolsExpanded = false },
-        onClose = { draft.adding = false })
+    val groups = remember { inputAddGroups(context) }
+    val done = { draft.adding = false; draft.toolsExpanded = false }
+    AddControlPanel(choices, groups, draft::available, draft::available, draft.layout.style,
+        onAdd = { draft.add(it, aspect); done() }, onAddGroup = { draft.add(it, aspect); done() }, onClose = { draft.adding = false })
 }
 
 @Composable
@@ -602,7 +631,7 @@ private fun SelectionSliders(draft: SurfaceDraft, onSliding: (Boolean) -> Unit =
         Modifier.testTag("input-selection-opacity"), onSliding = onSliding) { draft.setSelectionOpacity(it) }
 }
 
-private fun InputControlGroup.label() = when (this) {
+internal fun InputControlGroup.label() = when (this) {
     InputControlGroup.DPAD -> R.string.input_group_dpad
     InputControlGroup.FACE -> R.string.input_group_face
     InputControlGroup.LEFT_SHOULDER -> R.string.input_group_left_shoulder

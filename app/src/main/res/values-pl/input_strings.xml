@@ -24,6 +24,8 @@
     <string name="input_command_qam">Otwórz szybki dostęp Steam</string>
     <string name="input_remove_element">Usuń element sterujący</string>
     <string name="input_add_element">Dodaj element sterujący</string>
+    <string name="input_add_tab_buttons">Przyciski</string>
+    <string name="input_add_tab_groups">Grupy</string>
     <string name="input_extra_keys">Przyciski specyficzne dla urządzenia</string>
     <string name="input_capture">Przypisz przycisk fizyczny</string>
     <string name="input_capture_confirm">Zwolnij przycisk, a następnie wybierz Edytuj, Ponów lub Anuluj. B lub Wstecz anuluje po zwolnieniu.</string>

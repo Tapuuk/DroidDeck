@@ -24,6 +24,8 @@
     <string name="input_command_qam">เปิดการเข้าถึงด่วนของ Steam</string>
     <string name="input_remove_element">ลบการควบคุม</string>
     <string name="input_add_element">เพิ่มการควบคุม</string>
+    <string name="input_add_tab_buttons">ปุ่ม</string>
+    <string name="input_add_tab_groups">กลุ่ม</string>
     <string name="input_extra_keys">ปุ่มเฉพาะอุปกรณ์</string>
     <string name="input_capture">กำหนดปุ่มจริง</string>
     <string name="input_capture_confirm">ปล่อยปุ่ม แล้วเลือก แก้ไข ลองอีกครั้ง หรือยกเลิก B หรือย้อนกลับจะยกเลิกหลังปล่อย</string>

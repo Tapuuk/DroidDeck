@@ -24,6 +24,8 @@
     <string name="input_command_qam">Steam hızlı erişimini aç</string>
     <string name="input_remove_element">Denetimi kaldır</string>
     <string name="input_add_element">Denetim ekle</string>
+    <string name="input_add_tab_buttons">Düğmeler</string>
+    <string name="input_add_tab_groups">Gruplar</string>
     <string name="input_extra_keys">Cihaza özel düğmeler</string>
     <string name="input_capture">Fiziksel düğme ata</string>
     <string name="input_capture_confirm">Düğmeyi bırakın, ardından Düzenle, Yeniden dene veya İptal seçin. B veya Geri, bıraktıktan sonra iptal eder.</string>

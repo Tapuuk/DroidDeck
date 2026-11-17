@@ -23,6 +23,8 @@
     <string name="input_command_qam">Open Steam quick access</string>
     <string name="input_remove_element">Remove control</string>
     <string name="input_add_element">Add control</string>
+    <string name="input_add_tab_buttons">Buttons</string>
+    <string name="input_add_tab_groups">Groups</string>
     <string name="input_extra_keys">Device-specific buttons</string>
     <string name="input_capture">Assign a physical button</string>
     <string name="input_capture_confirm">Release the button, then choose Edit, Retry, or Cancel. B or Back cancels after release.</string>

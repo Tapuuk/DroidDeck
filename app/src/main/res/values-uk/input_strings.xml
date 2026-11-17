@@ -24,6 +24,8 @@
     <string name="input_command_qam">Відкрити швидкий доступ Steam</string>
     <string name="input_remove_element">Видалити елемент</string>
     <string name="input_add_element">Додати елемент</string>
+    <string name="input_add_tab_buttons">Кнопки</string>
+    <string name="input_add_tab_groups">Групи</string>
     <string name="input_extra_keys">Кнопки конкретного пристрою</string>
     <string name="input_capture">Призначити фізичну кнопку</string>
     <string name="input_capture_confirm">Відпустіть кнопку, потім виберіть «Редагувати», «Повторити» або «Скасувати». B або «Назад» скасовує після відпускання.</string>

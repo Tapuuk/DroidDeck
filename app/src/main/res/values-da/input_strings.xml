@@ -24,6 +24,8 @@
     <string name="input_command_qam">Åbn Steams hurtigadgang</string>
     <string name="input_remove_element">Fjern kontrol</string>
     <string name="input_add_element">Tilføj kontrol</string>
+    <string name="input_add_tab_buttons">Knapper</string>
+    <string name="input_add_tab_groups">Grupper</string>
     <string name="input_extra_keys">Enhedsspecifikke knapper</string>
     <string name="input_capture">Tildel en fysisk knap</string>
     <string name="input_capture_confirm">Slip knappen, og vælg Rediger, Prøv igen eller Annuller. B eller Tilbage annullerer efter slip.</string>

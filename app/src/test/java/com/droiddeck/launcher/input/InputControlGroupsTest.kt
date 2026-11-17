@@ -47,6 +47,14 @@ class InputControlGroupsTest {
         assertEquals(dpad, layout.pressSelection(dpad, "legacy:up"))
     }
 
+    @Test fun anAddedSetMovesAsOneUntilAMemberIsTapped() {
+        val set = listOf("added-1", "added-2")
+        val added = layout + set.map { InputSurfaceElement(InputControl.A, .4f, .4f, .1f, .1f, id = it) }
+        assertEquals(set, added.pressSelection(set, "added-2"))
+        assertEquals(listOf("added-2"), added.tapSelection(set, "added-2"))
+        assertEquals(dpad, added.pressSelection(set, "legacy:up"))
+    }
+
     @Test fun movingAGroupKeepsItsShapeAndStopsAtTheEdge() {
         val moved = layout.moveSelection(dpad, -.5f, .1f)
         val before = layout.boundsOf(dpad)!!

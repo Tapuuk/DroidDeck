@@ -24,6 +24,8 @@
     <string name="input_command_qam">Steam 빠른 액세스 열기</string>
     <string name="input_remove_element">컨트롤 제거</string>
     <string name="input_add_element">컨트롤 추가</string>
+    <string name="input_add_tab_buttons">버튼</string>
+    <string name="input_add_tab_groups">그룹</string>
     <string name="input_extra_keys">기기별 버튼</string>
     <string name="input_capture">물리 버튼 지정</string>
     <string name="input_capture_confirm">버튼을 놓은 다음 편집, 다시 시도 또는 취소를 선택하세요. B 또는 뒤로는 놓은 후 취소합니다.</string>

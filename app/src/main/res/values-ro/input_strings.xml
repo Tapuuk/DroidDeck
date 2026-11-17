@@ -24,6 +24,8 @@
     <string name="input_command_qam">Deschide accesul rapid Steam</string>
     <string name="input_remove_element">Elimină controlul</string>
     <string name="input_add_element">Adaugă control</string>
+    <string name="input_add_tab_buttons">Butoane</string>
+    <string name="input_add_tab_groups">Grupuri</string>
     <string name="input_extra_keys">Butoane specifice dispozitivului</string>
     <string name="input_capture">Atribuie un buton fizic</string>
     <string name="input_capture_confirm">Eliberează butonul, apoi alege Editează, Reîncearcă sau Anulează. B sau Înapoi anulează după eliberare.</string>
