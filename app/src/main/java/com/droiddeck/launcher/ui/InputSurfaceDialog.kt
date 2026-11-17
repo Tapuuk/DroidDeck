@@ -86,8 +86,7 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
     val selected get() = selection.singleOrNull()
     private var sizeBase by mutableStateOf<Map<String, InputSurfaceElement>?>(null)
     var toolsExpanded by mutableStateOf(false)
-    var toolsX by mutableFloatStateOf(.02f)
-    var toolsY by mutableFloatStateOf(.02f)
+    var toolsAt by mutableStateOf<Pair<Float, Float>?>(null)
     var snap by mutableStateOf(snap)
     var adding by mutableStateOf(false)
     var restoring by mutableStateOf(false)
@@ -352,27 +351,36 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, onSave: () -> Unit, onLeav
         val screenWidth = with(density) { maxWidth.toPx() }
         val screenHeight = with(density) { maxHeight.toPx() }
         val margin = with(density) { 8.dp.toPx() }
-        var panelSize by remember { mutableStateOf(IntSize.Zero) }
-        val x = (draft.toolsX * screenWidth).coerceIn(margin, (screenWidth - panelSize.width - margin).coerceAtLeast(margin))
-        val y = (draft.toolsY * screenHeight).coerceIn(margin, (screenHeight - panelSize.height - margin).coerceAtLeast(margin))
+        var headerHeight by remember { mutableIntStateOf(0) }
+        var contentHeight by remember { mutableIntStateOf(0) }
+        var dragging by remember { mutableStateOf(false) }
+        val selected = draft.visible.boundsOf(draft.selection)
+        val expandedWidth = with(density) {
+            surfaceToolsWidth(screenWidth, margin, selected, minOf(280.dp, maxWidth - 16.dp).toPx(), minOf(420.dp, maxWidth - 16.dp).toPx()).toDp()
+        }
+        val targetWidth = with(density) { (if (draft.toolsExpanded) expandedWidth else 152.dp).toPx() }
+        val targetHeight = (headerHeight.toFloat().coerceAtLeast(with(density) { 52.dp.toPx() }) + if (draft.toolsExpanded) contentHeight else 0)
+            .coerceAtMost(screenHeight - 2 * margin)
+        val bounds = draft.visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) }
+        val (x, y) = placeSurfaceTools(screenWidth, screenHeight, targetWidth, targetHeight, margin, bounds,
+            if (dragging) null else selected, draft.toolsAt)
         val position by rememberUpdatedState(Offset(x, y))
-        val expandedWidth = minOf(420.dp, maxWidth - 16.dp)
         val panelWidth by animateDpAsState(if (draft.toolsExpanded) expandedWidth else 152.dp, label = "input-tools-width")
         Surface(Modifier.offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .width(panelWidth).clipToBounds()
-            .heightIn(max = maxHeight - 16.dp).onSizeChanged { panelSize = it },
+            .heightIn(max = maxHeight - 16.dp).testTag("input-editor-panel"),
             shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp, shadowElevation = 10.dp) {
             Column {
-                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("input-editor-tools")
-                    .pointerInput(screenWidth, screenHeight, panelSize) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("input-editor-tools").onSizeChanged { headerHeight = it.height }
+                    .pointerInput(screenWidth, screenHeight, targetWidth, targetHeight) {
                         var dragPosition = Offset.Zero
-                        detectDragGestures(onDragStart = { dragPosition = position }) { change, delta ->
+                        detectDragGestures(onDragStart = { dragPosition = position; dragging = true },
+                            onDragEnd = { dragging = false }, onDragCancel = { dragging = false }) { change, delta ->
                             change.consume()
-                            dragPosition = Offset((dragPosition.x + delta.x).coerceIn(margin, (screenWidth - panelSize.width - margin).coerceAtLeast(margin)),
-                                (dragPosition.y + delta.y).coerceIn(margin, (screenHeight - panelSize.height - margin).coerceAtLeast(margin)))
-                            draft.toolsX = dragPosition.x / screenWidth
-                            draft.toolsY = dragPosition.y / screenHeight
+                            dragPosition = Offset((dragPosition.x + delta.x).coerceIn(margin, (screenWidth - targetWidth - margin).coerceAtLeast(margin)),
+                                (dragPosition.y + delta.y).coerceIn(margin, (screenHeight - targetHeight - margin).coerceAtLeast(margin)))
+                            draft.toolsAt = dragPosition.x / screenWidth to dragPosition.y / screenHeight
                         }
                     }
                     .clickable { draft.toolsExpanded = !draft.toolsExpanded }.padding(horizontal = 16.dp),
@@ -382,7 +390,7 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, onSave: () -> Unit, onLeav
                 }
                 AnimatedVisibility(draft.toolsExpanded, enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()) {
-                    Column(Modifier.requiredWidth(expandedWidth).verticalScroll(rememberScrollState())) {
+                    Column(Modifier.requiredWidth(expandedWidth).onSizeChanged { contentHeight = it.height }.verticalScroll(rememberScrollState())) {
                         HorizontalDivider()
                         SurfaceToolbar(draft, onSave, onLeave)
                         HorizontalDivider()

@@ -149,6 +149,25 @@ class InputSettingsTest {
         }
     }
 
+    @Test fun editorToolsStayOffTheDefaultLayoutAndTheSelectedControl() {
+        val library = InputLibraries.read(context)
+        val layout = library.layouts.first { it.id == InputLibraries.OVERLAY }
+        compose.setContent { DroidDeckTheme { InputSurfaceDialog(InputProfile.GAME, {}, {}, role = InputRole.PRIMARY, layoutId = layout.id,
+            bindingsId = library.profile(InputProfile.GAME).binding(InputRole.PRIMARY)) } }
+        val canvas = compose.onNodeWithTag("input-layout-canvas").fetchSemanticsNode().boundsInRoot
+        fun rect(e: InputSurfaceElement) = androidx.compose.ui.geometry.Rect(canvas.left + e.x * canvas.width, canvas.top + e.y * canvas.height,
+            canvas.left + (e.x + e.width) * canvas.width, canvas.top + (e.y + e.height) * canvas.height)
+        fun panel() = compose.onNodeWithTag("input-editor-panel").fetchSemanticsNode().boundsInRoot
+        for (e in layout.elements.filterNot { it.id in layout.style.removed }) assertFalse(e.id, panel().overlaps(rect(e)))
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.onNodeWithText(context.getString(R.string.input_editor_add)).performClick()
+        compose.onNodeWithText(context.getString(R.string.input_element_button), substring = false).performClick()
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        compose.waitForIdle()
+        val added = rect(layout.elements.first().copy(x = .4f, y = .35f, width = .2f, height = .3f))
+        assertFalse(panel().overlaps(added))
+    }
+
     @Test fun aNewProfileIsIndependentAndDoesNotBecomeActive() {
         compose.setContent { DroidDeckTheme { InputSettingsPage({}) } }
         compose.onNodeWithText(context.getString(R.string.input_new_profile)).performScrollTo().performClick()
