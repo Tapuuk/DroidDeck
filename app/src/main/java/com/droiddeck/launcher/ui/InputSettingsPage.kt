@@ -94,7 +94,9 @@ private fun InputSettingsContent(onBack: () -> Unit, onChanged: () -> Unit, embe
     var reuse by remember { mutableStateOf<InputReuseRequest?>(null) }
     var capture by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf(false) }
-    LaunchedEffect(surface) { onSurfaceEditing(surface) }
+    // The session's main-screen editor draws over the game, so the page must not show under it. Other editors cover the page.
+    val seeThrough = surface && role == InputRole.PRIMARY && (LocalInputActivity.current ?: context.findActivity()) is com.droiddeck.launcher.SessionActivity
+    LaunchedEffect(seeThrough) { onSurfaceEditing(seeThrough) }
     DisposableEffect(Unit) { onDispose { onSurfaceEditing(false) } }
     var managingLayout by remember { mutableStateOf<SavedInputLayout?>(null) }
     var exporting by remember { mutableStateOf<String?>(null) }
@@ -184,7 +186,7 @@ private fun InputSettingsContent(onBack: () -> Unit, onChanged: () -> Unit, embe
                     else -> b.copy(controls = b.controls + (editing.control to action))
                 }) }) edit = null
             })
-    } else if (!surface) key(page, profileId, role) {
+    } else if (!seeThrough) key(page, profileId, role) {
         SettingsPage(host, title = when (page) {
             InputPage.HOME -> if (embedded) null else stringResource(R.string.setup_controller)
             InputPage.PROFILE -> profile.name
