@@ -24,6 +24,14 @@ import java.nio.file.Files
 @Config(sdk = [34], manifest = Config.NONE, instrumentedPackages = ["com.droiddeck.launcher.input.FakeInputWriter"],
     shadows = [JoyConPadTest.RecordingWriter::class, SessionInputPointerTest.CompositorShadow::class])
 class InputSurfaceViewTest {
+    @Test fun labelsFollowTheControlSizeAndShrinkOnlyToFitItsWidth() {
+        val threeLetters = { size: Float -> size * 3f }
+        assertEquals(16f, fittedTextSize(16f, 100f, threeLetters), 0f)
+        assertEquals(32f, fittedTextSize(32f, 200f, threeLetters), 0f)
+        assertEquals(10f, fittedTextSize(16f, 30f, threeLetters), .0001f)
+        assertEquals(20f, fittedTextSize(32f, 60f, threeLetters), .0001f)
+    }
+
     @Test fun customControlsReleaseOnDetachAndWorkWhenTheSameViewReturns() {
         val controller = Robolectric.buildActivity(ComponentActivity::class.java).setup()
         val activity = controller.get()

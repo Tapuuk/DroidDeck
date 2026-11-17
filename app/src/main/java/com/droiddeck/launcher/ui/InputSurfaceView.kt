@@ -43,6 +43,11 @@ import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.min
 
+internal fun fittedTextSize(preferred: Float, room: Float, measure: (Float) -> Float): Float {
+    val width = measure(preferred)
+    return if (width > room && width > 0f) preferred * room / width else preferred
+}
+
 @SuppressLint("ViewConstructor")
 class InputSurfaceView(
     context: Context,
@@ -275,6 +280,9 @@ class InputSurfaceView(
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
+        protected fun fitLabel(text: String, preferred: Float, room: Float) {
+            labelPaint.textSize = fittedTextSize(preferred, room) { labelPaint.textSize = it; labelPaint.measureText(text) }
+        }
         protected val captionPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textAlign = Paint.Align.CENTER
             color = TEXT_DIM
@@ -365,17 +373,15 @@ class InputSurfaceView(
                 val direction = DIRECTIONS.indexOf(element.control)
                 if (direction >= 0) { drawArrow(canvas, cx, height / 2f, radius * 0.34f, direction, labelPaint); return }
                 val glyph = glyph(element.control)
-                labelPaint.textSize = when {
+                fitLabel(glyph, when {
                     element.buttonShape == InputButtonShape.PILL -> height / 2f * 0.8f
-                    glyph.length > 2 -> 11 * density
+                    glyph.length > 2 -> radius * 0.5f
                     else -> radius * if (glyph.length == 2) 0.62f else 0.85f
-                }
+                }, width * .84f)
                 canvas.drawText(glyph, cx, height / 2f + labelPaint.textSize * .35f, labelPaint)
                 return
             }
-            labelPaint.textSize = min(height * .3f, 30 * density)
-            val labelWidth = labelPaint.measureText(element.name)
-            if (labelWidth > width * .84f) labelPaint.textSize *= width * .84f / labelWidth
+            fitLabel(element.name, height * .32f, width * .84f)
             canvas.drawText(element.name, cx, height / 2f + labelPaint.textSize * .35f, labelPaint)
         }
 
@@ -544,8 +550,8 @@ class InputSurfaceView(
                 if (!element.showLabel) return
                 labelPaint.color = textColor(touching)
                 if (drawDirectionLabels(canvas, source, false, cx, cy, radius * 0.66f, radius * 0.34f, labelPaint)) return
-                labelPaint.textSize = knobRadius * 0.8f
                 val label = if (element.name == element.control.label) glyph(element.control) else element.name
+                fitLabel(label, knobRadius * 0.8f, knobRadius * 1.7f)
                 canvas.drawText(label, cx + knobX, cy + knobY + labelPaint.textSize * 0.35f, labelPaint)
                 return
             }
