@@ -37,16 +37,16 @@ import kotlin.math.roundToInt
 
 internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     var elements: List<InputSurfaceElement> = emptyList()
-        set(value) { field = value; preview.updateCustomLayout(value); popPending(); refreshGeometry() }
+        set(value) { if (value == field) return; field = value; preview.updateCustomLayout(value); popPending(); refreshGeometry() }
     var style = InputSurfaceStyle()
-        set(value) { field = value; preview.updateStyle(value); refreshGeometry() }
+        set(value) { if (value == field) return; field = value; preview.updateStyle(value); refreshGeometry() }
     var snap = true
         set(value) { field = value; if (!value) clearGuides() }
     var selection: List<String> = emptyList()
         set(value) {
-            val fresh = value != field
+            if (value == field) return
             field = value
-            if (fresh && value.isNotEmpty()) selectionIn.animate(0f, SELECT_MS, SELECT_MS.toLong(), LINEAR) else if (value.isEmpty()) selectionIn.snap(SELECT_MS)
+            if (value.isNotEmpty()) selectionIn.animate(0f, SELECT_MS, SELECT_MS.toLong(), LINEAR) else selectionIn.snap(SELECT_MS)
             refreshGeometry()
         }
     var onSelect: (List<String>) -> Unit = {}
