@@ -120,6 +120,7 @@ object InputProfiles {
             is InputAction.Directions -> { put("type", "directions"); put("codes", JSONArray(listOf(action.up, action.right, action.down, action.left))); action.diagonals?.let { put("diagonals", JSONArray(it)) } }
             is InputAction.Pointer -> { put("type", "pointer"); put("speed", action.speed.toDouble()) }
             is InputAction.Scroll -> { put("type", "scroll"); put("speed", action.speed.toDouble()); put("horizontal", action.horizontal) }
+            is InputAction.Wheel -> { put("type", "wheel"); put("steps", action.steps) }
         }
     }
 
@@ -133,6 +134,7 @@ object InputProfiles {
             "directions" -> json.getJSONArray("codes").let { InputAction.Directions(it.getInt(0), it.getInt(1), it.getInt(2), it.getInt(3), json.optJSONArray("diagonals")?.let { d -> (0 until d.length()).map { d.getInt(it) } }) }
             "pointer" -> InputAction.Pointer(json.getDouble("speed").toFloat())
             "scroll" -> InputAction.Scroll(json.getDouble("speed").toFloat(), json.optBoolean("horizontal", false))
+            "wheel" -> InputAction.Wheel(json.getInt("steps"))
             else -> null
         }
     }.getOrNull()

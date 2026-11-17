@@ -24,6 +24,7 @@ internal fun actionLabel(action: InputAction): String {
         is InputAction.Directions -> listOf(action.up, action.right, action.down, action.left).joinToString(" / ") { pcKeyLabel(context, it) }
         is InputAction.Pointer -> stringResource(R.string.input_pointer)
         is InputAction.Scroll -> stringResource(if (action.horizontal) R.string.input_scroll_horizontal else R.string.input_scroll_vertical)
+        is InputAction.Wheel -> stringResource(if (action.steps < 0) R.string.input_wheel_up else R.string.input_wheel_down)
     }
 }
 

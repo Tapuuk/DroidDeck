@@ -27,7 +27,7 @@ internal fun InputActionEditor(
         is InputAction.Native -> "native"; InputAction.Disabled -> "disabled"
         is InputAction.MouseButton -> "mouse"; is InputAction.Command -> "command"
         is InputAction.Pointer -> "pointer"; is InputAction.Scroll -> "scroll"
-        is InputAction.Directions -> "directions"; is InputAction.Keys -> "keys"
+        is InputAction.Directions -> "directions"; is InputAction.Keys -> "keys"; is InputAction.Wheel -> "wheel"
     }
     var localType by remember(current, title) { mutableStateOf(typeOf(current).takeUnless { it == "native" || it == "disabled" } ?: "keys") }
     fun switch(type: String, initial: () -> InputAction) {
