@@ -526,6 +526,82 @@ class InputSettingsTest {
         }
     }
 
+    @Test fun scaleAfterAddingBackKeepsItsMeaningAndUndoesOneStep() {
+        val library = InputLibraries.read(context)
+        val layout = library.layouts.first { it.id == InputLibraries.DECK }
+        val hidden = layout.elements.first().id
+        InputLibraries.update(context) { it.withLayout(layout.copy(style = layout.style.copy(removed = setOf(hidden)))) }
+        compose.setContent { DroidDeckTheme { InputSurfaceDialog("game", {}, {}, role = InputRole.PRIMARY,
+            layoutId = layout.id, bindingsId = library.profile("game").binding(InputRole.SECONDARY)) } }
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        val percent = androidx.compose.ui.semantics.SemanticsProperties.StateDescription
+        compose.onNodeWithTag("input-editor-scale").performScrollTo()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(110f) }
+        compose.onNodeWithTag("input-editor-removed").performScrollTo().performClick()
+        compose.onNode(hasText(context.getString(R.string.input_add_back)) and hasAnyAncestor(hasTestTag("input-removed-$hidden"))).performClick()
+        compose.onNodeWithTag("input-editor-scale").performScrollTo().assert(SemanticsMatcher.expectValue(percent, "110%"))
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(120f) }
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
+        compose.runOnIdle {
+            val saved = InputLibraries.read(context).layouts.first { it.id == layout.id }
+            assertEquals(layout.elements.scaled(1.2f), saved.elements)
+            assertEquals(emptySet<String>(), saved.style.removed)
+        }
+        compose.onNodeWithText(context.getString(R.string.input_editor_undo)).performScrollTo().performClick()
+        compose.onNodeWithTag("input-editor-scale").performScrollTo().assert(SemanticsMatcher.expectValue(percent, "110%"))
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
+        compose.runOnIdle {
+            val saved = InputLibraries.read(context).layouts.first { it.id == layout.id }
+            assertEquals(layout.elements.scaled(1.1f), saved.elements)
+            assertEquals(emptySet<String>(), saved.style.removed)
+        }
+    }
+
+    private fun deckDraft(): Pair<SurfaceDraft, String> {
+        val library = InputLibraries.read(context)
+        val layout = library.layouts.first { it.id == InputLibraries.DECK }
+        val draft = SurfaceDraft(layout, library.preset(library.profile("game").binding(InputRole.SECONDARY)))
+        val id = "legacy:l4"
+        draft.select(listOf(id))
+        return draft to id
+    }
+
+    @Test fun resizeAfterAnActionChangeIsItsOwnUndoStep() {
+        val (draft, id) = deckDraft()
+        val jump = InputAction.Keys(listOf(57))
+        draft.resizeSelection(120)
+        draft.checkpoint(); draft.actions = draft.actions + (id to jump)
+        draft.resizeSelection(140)
+        assertEquals(140, draft.selectionSize)
+        draft.undo()
+        assertEquals(120, draft.selectionSize)
+        assertEquals(jump, draft.actions[id])
+        draft.undo()
+        assertEquals(120, draft.selectionSize)
+        assertNotEquals(jump, draft.actions[id])
+        draft.undo()
+        assertEquals(100, draft.selectionSize)
+    }
+
+    @Test fun opacityAfterAnActionChangeIsItsOwnUndoStep() {
+        val (draft, id) = deckDraft()
+        val jump = InputAction.Keys(listOf(57))
+        val opacity = draft.selectionOpacity
+        assertNotEquals(.7f, opacity, .001f)
+        draft.setSelectionOpacity(80)
+        draft.setSelectionOpacity(70)
+        draft.checkpoint(); draft.actions = draft.actions + (id to jump)
+        draft.setSelectionOpacity(50)
+        draft.undo()
+        assertEquals(.7f, draft.selectionOpacity, .001f)
+        assertEquals(jump, draft.actions[id])
+        draft.undo()
+        assertEquals(.7f, draft.selectionOpacity, .001f)
+        assertNotEquals(jump, draft.actions[id])
+        draft.undo()
+        assertEquals(opacity, draft.selectionOpacity, .001f)
+    }
+
     @Test fun buttonSizeRegeneratesTheGamepadAndUndoesAsOneStep() {
         val library = InputLibraries.read(context)
         val layout = library.layout("game", InputRole.PRIMARY)!!

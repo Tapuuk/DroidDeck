@@ -58,10 +58,14 @@ import com.droiddeck.launcher.SessionActivity
 import com.droiddeck.launcher.input.*
 import com.droiddeck.launcher.session.SessionState
 
-private data class SurfaceSnapshot(val elements: List<InputSurfaceElement>, val actions: Map<String, InputAction>,
-    val clicks: Map<String, InputAction>, val scale: Float, val removed: Set<String>)
+internal data class SurfaceSnapshot(val elements: List<InputSurfaceElement>, val actions: Map<String, InputAction>,
+    val clicks: Map<String, InputAction>, val scale: Float, val freeScale: Float, val removed: Set<String>)
 
-private class GamepadScaler(private val context: android.content.Context, private val width: Int, private val height: Int) {
+private enum class SliderEdit { SCALE, SIZE, OPACITY }
+
+private class ScaleStep(val base: List<InputSurfaceElement>, val baseFactor: Float, val result: List<InputSurfaceElement>, val factor: Float)
+
+internal class GamepadScaler(private val context: android.content.Context, private val width: Int, private val height: Int) {
     private fun generator(scale: Float) = LegacyGamepadLayout(context, width, height, scale = scale)
     val ids = generator(1f).elements().map { it.id }.toSet()
     fun rescale(stored: List<InputSurfaceElement>, from: Float, to: Float) = generator(to).rescale(stored, generator(from))
@@ -70,7 +74,7 @@ private class GamepadScaler(private val context: android.content.Context, privat
     val geometry by lazy { generator(1f).elements().associateBy { it.id } }
 }
 
-private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputBindings, val defaults: List<InputSurfaceElement>? = null,
+internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputBindings, val defaults: List<InputSurfaceElement>? = null,
     private val gamepad: GamepadScaler? = null, snap: Boolean = true) {
     var elements by mutableStateOf(layout.elements)
     var actions by mutableStateOf(preset.elements)
@@ -81,8 +85,6 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
         private set
     val selected get() = selection.singleOrNull()
     private var sizeBase by mutableStateOf<Map<String, InputSurfaceElement>?>(null)
-    private var sizeEdit: List<InputSurfaceElement>? = null
-    private var opacityEdit: List<InputSurfaceElement>? = null
     var toolsExpanded by mutableStateOf(false)
     var toolsX by mutableFloatStateOf(.02f)
     var toolsY by mutableFloatStateOf(.02f)
@@ -93,24 +95,30 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     var clickProperties by mutableStateOf(false)
     var history by mutableStateOf<List<SurfaceSnapshot>>(emptyList())
     var layoutScale by mutableFloatStateOf(layout.scale)
-    private var scaleBase by mutableStateOf<Triple<List<InputSurfaceElement>, List<InputSurfaceElement>, Float>?>(null)
-    private var scaleValue by mutableIntStateOf(100)
-    private var scaleMark: SurfaceSnapshot? = null
+    private var freeScale by mutableFloatStateOf(1f)
+    private var scaleStep: ScaleStep? = null
+    private var sliding: SliderEdit? = null
     private val rescales get() = gamepad != null && elements.any { it.id in gamepad.ids }
-    val scale get() = when {
-        scaleBase?.second == elements -> scaleValue
-        rescales -> (layoutScale * 100).roundToInt()
-        else -> 100
-    }
+    private var scaleFactor
+        get() = if (rescales) layoutScale else freeScale
+        set(value) { if (rescales) layoutScale = value else freeScale = value }
+    val scale get() = (scaleFactor * 100).roundToInt()
     val positioned get() = (if (rescales) gamepad!!.reset(elements) else defaults?.let { elements.withPositionsOf(it) })
         ?.takeIf { it != elements || rescales && layoutScale != 1f }
     val element get() = elements.firstOrNull { it.id == selected }
     val dirty get() = elements != layout.elements || actions != preset.elements || clicks != preset.clicks || layoutScale != layout.scale ||
         removed != layout.style.removed
-    fun checkpoint() { history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale, removed)).takeLast(40) }
+    fun checkpoint() {
+        sliding = null
+        history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale, freeScale, removed)).takeLast(40)
+    }
+    private fun slide(edit: SliderEdit) { if (sliding != edit) { checkpoint(); sliding = edit } }
     fun undo() {
-        sizeEdit = null; opacityEdit = null
-        history.lastOrNull()?.let { elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; removed = it.removed; history = history.dropLast(1) }
+        sliding = null
+        history.lastOrNull()?.let {
+            elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; freeScale = it.freeScale; removed = it.removed
+            history = history.dropLast(1)
+        }
         val kept = selection.filter { id -> visible.any { it.id == id } }
         select(if (kept.size > 1) visible.groupOf(kept.first()) else kept)
     }
@@ -127,19 +135,23 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
         checkpoint(); elements = elements.filterNot { it.id == id }; actions = actions - id; clicks = clicks - id; removed = removed - id
     }
     fun scaleAll(percent: Int) {
-        val base = scaleBase?.takeIf { it.second == elements && history.lastOrNull() === scaleMark }
-            ?: Triple(elements, elements, if (rescales) layoutScale else 0f).also { checkpoint(); scaleMark = history.last() }
+        if (percent == scale) return
+        slide(SliderEdit.SCALE)
+        // `scaled` clamps to the screen, so scaling an already scaled layout is lossy: reuse the pre-scale base while the elements are unchanged.
+        val (base, from) = scaleStep?.takeIf { it.result == elements && it.factor == scaleFactor }?.let { it.base to it.baseFactor }
+            ?: (elements to scaleFactor)
         val factor = percent / 100f
-        elements = if (base.third > 0f && gamepad != null) {
-            layoutScale = factor
-            val others = base.first.filterNot { it.id in gamepad.ids }.scaled(factor / base.third).associateBy { it.id }
-            gamepad.rescale(base.first, base.third, factor).map { others[it.id] ?: it }
-        } else base.first.scaled(factor)
-        scaleValue = percent; scaleBase = Triple(base.first, elements, base.third)
+        elements = if (rescales) {
+            val others = base.filterNot { it.id in gamepad!!.ids }.scaled(factor / from).associateBy { it.id }
+            gamepad!!.rescale(base, from, factor).map { others[it.id] ?: it }
+        } else base.scaled(factor / from)
+        scaleFactor = factor
+        scaleStep = ScaleStep(base, from, elements, factor)
     }
     fun select(ids: List<String>) {
         if (ids == selection) return
-        selection = ids; sizeBase = elements.filter { it.id in ids }.associateBy { it.id }; sizeEdit = null; opacityEdit = null
+        sliding = null
+        selection = ids; sizeBase = elements.filter { it.id in ids }.associateBy { it.id }
     }
     private val stockGeometry by lazy { defaults.orEmpty().associateBy { it.id } + gamepad?.geometry.orEmpty() }
     private fun sizeReference() = stockGeometry.takeIf { stock -> selection.isNotEmpty() && selection.all { it in stock } } ?: sizeBase
@@ -147,18 +159,16 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     fun resizeSelection(percent: Int) {
         val reference = sizeReference() ?: return
         if (percent == selectionSize) return
-        if (sizeEdit != elements) checkpoint()
+        slide(SliderEdit.SIZE)
         elements = elements.scaleSelection(selection, percent / elements.sizePercent(selection, reference))
-        sizeEdit = elements
     }
     val selectionOpacity get() = elements.firstOrNull { it.id in selection }?.opacity ?: 1f
     fun setSelectionOpacity(percent: Int) {
         if (elements.filter { it.id in selection }.all { (it.opacity * 100).roundToInt() == percent }) return
-        if (opacityEdit != elements) checkpoint()
+        slide(SliderEdit.OPACITY)
         elements = elements.map { if (it.id in selection) it.copy(opacity = percent / 100f) else it }
-        opacityEdit = elements
     }
-    fun resetPositions() { positioned?.let { checkpoint(); elements = it; if (rescales) layoutScale = 1f } }
+    fun resetPositions() { positioned?.let { checkpoint(); elements = it; scaleFactor = 1f } }
     fun action(e: InputSurfaceElement) = preset.copy(elements = actions).action(e)
     fun clickAction(e: InputSurfaceElement) = preset.copy(elements = actions, clicks = clicks).clickAction(e)
 }
