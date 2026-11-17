@@ -30,6 +30,7 @@
     <string name="input_element_trigger">Trigger</string>
     <string name="input_editor_done">Done</string>
     <string name="input_editor_undo">Undo</string>
+    <string name="input_editor_redo">Redo</string>
     <string name="input_editor_add">+ Add</string>
     <string name="input_editor_hint">Drag to move. Drag a corner to resize. Tap Properties to assign an action.</string>
     <string name="input_editor_remote">Editing on your second screen</string>

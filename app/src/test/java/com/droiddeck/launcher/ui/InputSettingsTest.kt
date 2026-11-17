@@ -585,6 +585,57 @@ class InputSettingsTest {
         return draft to id
     }
 
+    private fun SurfaceDraft.state() = listOf(elements, actions, clicks, removed, layoutScale, scale, selectionSize, selectionOpacity)
+
+    @Test fun redoRestoresEveryUndoneStepExactly() {
+        val (draft, id) = deckDraft()
+        val states = mutableListOf(draft.state())
+        draft.select(listOf("legacy:r4")); draft.removeSelection(); draft.select(listOf(id)); states += draft.state()
+        draft.resizeSelection(120); states += draft.state()
+        draft.checkpoint(); draft.actions = draft.actions + (id to InputAction.Keys(listOf(57))); states += draft.state()
+        draft.setSelectionOpacity(60); states += draft.state()
+        draft.scaleAll(110); draft.scaleAll(115); states += draft.state()
+        for (i in states.indices.reversed().drop(1)) { draft.undo(); assertEquals(states[i], draft.state()) }
+        assertTrue(draft.history.isEmpty())
+        for (i in 1 until states.size) { draft.redo(); assertEquals(states[i], draft.state()) }
+        assertTrue(draft.redoable.isEmpty())
+    }
+
+    @Test fun aNewEditAfterUndoClearsRedo() {
+        val (draft, id) = deckDraft()
+        draft.resizeSelection(120)
+        draft.undo()
+        assertEquals(1, draft.redoable.size)
+        draft.setSelectionOpacity(50)
+        assertTrue(draft.redoable.isEmpty())
+        draft.redo()
+        assertEquals(.5f, draft.selectionOpacity, .001f)
+        assertEquals(100, draft.selectionSize)
+        draft.undo(); draft.undo()
+        assertEquals(id, draft.selected)
+    }
+
+    @Test fun redoAcrossAScaleSliderStepStartsAFreshSliderSession() {
+        val (draft, _) = deckDraft()
+        val start = draft.elements
+        draft.scaleAll(110); draft.scaleAll(120)
+        val scaled = draft.elements
+        draft.undo()
+        assertEquals(100, draft.scale)
+        assertEquals(start, draft.elements)
+        draft.redo()
+        assertEquals(120, draft.scale)
+        assertEquals(scaled, draft.elements)
+        draft.scaleAll(115)
+        assertTrue(draft.redoable.isEmpty())
+        draft.undo()
+        assertEquals(120, draft.scale)
+        assertEquals(scaled, draft.elements)
+        draft.undo()
+        assertEquals(100, draft.scale)
+        assertEquals(start, draft.elements)
+    }
+
     @Test fun resizeAfterAnActionChangeIsItsOwnUndoStep() {
         val (draft, id) = deckDraft()
         val jump = InputAction.Keys(listOf(57))

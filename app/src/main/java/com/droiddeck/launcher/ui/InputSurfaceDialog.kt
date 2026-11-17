@@ -107,19 +107,34 @@ internal class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInput
     val element get() = elements.firstOrNull { it.id == selected }
     val dirty get() = elements != layout.elements || actions != preset.elements || clicks != preset.clicks || layoutScale != layout.scale ||
         removed != layout.style.removed
+    var redoable by mutableStateOf<List<SurfaceSnapshot>>(emptyList())
+        private set
+    private fun snapshot() = SurfaceSnapshot(elements, actions, clicks, layoutScale, freeScale, removed)
     fun checkpoint() {
         sliding = null
-        history = (history + SurfaceSnapshot(elements, actions, clicks, layoutScale, freeScale, removed)).takeLast(40)
+        history = (history + snapshot()).takeLast(40)
+        redoable = emptyList()
     }
     private fun slide(edit: SliderEdit) { if (sliding != edit) { checkpoint(); sliding = edit } }
-    fun undo() {
+    private fun load(it: SurfaceSnapshot) {
         sliding = null
-        history.lastOrNull()?.let {
-            elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; freeScale = it.freeScale; removed = it.removed
-            history = history.dropLast(1)
-        }
+        elements = it.elements; actions = it.actions; clicks = it.clicks; layoutScale = it.scale; freeScale = it.freeScale; removed = it.removed
         val kept = selection.filter { id -> visible.any { it.id == id } }
         select(if (kept.size > 1) visible.groupOf(kept.first()) else kept)
+    }
+    fun undo() {
+        sliding = null
+        val previous = history.lastOrNull() ?: return
+        redoable = redoable + snapshot()
+        history = history.dropLast(1)
+        load(previous)
+    }
+    fun redo() {
+        sliding = null
+        val next = redoable.lastOrNull() ?: return
+        history = (history + snapshot()).takeLast(40)
+        redoable = redoable.dropLast(1)
+        load(next)
     }
     fun removeSelection() {
         if (selection.isEmpty()) return
@@ -410,6 +425,7 @@ private fun SurfaceToolbar(draft: SurfaceDraft, onSave: () -> Unit, onLeave: () 
         SecondaryButton(stringResource(R.string.common_cancel), compact = true, onClick = onLeave)
         SecondaryButton(stringResource(R.string.input_editor_add), enabled = draft.elements.size < 64, compact = true) { draft.adding = true }
         SecondaryButton(stringResource(R.string.input_editor_undo), enabled = draft.history.isNotEmpty(), compact = true) { draft.undo() }
+        SecondaryButton(stringResource(R.string.input_editor_redo), enabled = draft.redoable.isNotEmpty(), compact = true) { draft.redo() }
         if (draft.removed.isNotEmpty()) SecondaryButton(stringResource(R.string.input_removed_count, draft.removed.size), compact = true,
             modifier = Modifier.testTag("input-editor-removed")) { draft.restoring = true }
         if (draft.defaults != null) SecondaryButton(stringResource(R.string.input_reset_positions), enabled = draft.positioned != null, compact = true) { draft.resetPositions() }
