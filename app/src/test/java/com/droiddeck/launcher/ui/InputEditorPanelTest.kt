@@ -48,12 +48,9 @@ class InputEditorPanelTest {
     private fun value(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.StateDescription]
     private fun slide(tag: String, to: Float) = compose.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.SetProgress) { it(to) }
     private fun SavedInputLayout.element(id: String) = elements.first { it.id == id }
-    private fun deleteBadge(e: InputSurfaceElement) {
-        val target = rect(e)
-        val c = canvas()
-        val density = context.resources.displayMetrics.density
-        val badge = deleteBadgeCenter(SurfaceBounds(target.left, target.top, target.right, target.bottom), c.width, c.height, 28 * density, 22 * density)
-        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(Offset(badge.first - 14 * density, badge.second + 14 * density)) }
+    private fun deleteBadge(layout: SavedInputLayout, e: InputSurfaceElement) {
+        val badge = editorBadge(context, layout, listOf(e.id), canvas())
+        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(Offset(badge.first, badge.second)) }
     }
 
     @Test fun theOpenMenuDocksOnTheEdgeFartherFromTheSelection() {
@@ -147,7 +144,7 @@ class InputEditorPanelTest {
         val layout = open()
         val start = layout.element("legacy:start")
         tap(start)
-        deleteBadge(start)
+        deleteBadge(layout, start)
         compose.onNodeWithTag("input-selection-pill").assertDoesNotExist()
         compose.onNodeWithText(context.getString(R.string.input_editor_deleted, start.name)).assertIsDisplayed()
         menu()
@@ -166,3 +163,15 @@ class InputEditorPanelTest {
         compose.onNodeWithText(context.getString(R.string.input_editor_tap_hint)).assertDoesNotExist()
     }
 }
+
+/** Where the editor draws the delete badge for [selection] on a canvas the size of [canvas]. */
+internal fun editorBadge(context: Context, layout: SavedInputLayout, selection: List<String>, canvas: Rect): Pair<Float, Float> =
+    InputSurfaceEditorView(context).run {
+        style = layout.style.copy(removed = emptySet())
+        elements = layout.elements.filterNot { it.id in layout.style.removed }
+        measure(android.view.View.MeasureSpec.makeMeasureSpec(canvas.width.toInt(), android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(canvas.height.toInt(), android.view.View.MeasureSpec.EXACTLY))
+        layout(0, 0, canvas.width.toInt(), canvas.height.toInt())
+        this.selection = selection
+        badgeCenter()!!
+    }

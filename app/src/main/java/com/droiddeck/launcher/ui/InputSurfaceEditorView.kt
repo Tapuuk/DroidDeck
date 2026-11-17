@@ -23,7 +23,6 @@ import com.droiddeck.launcher.input.InputSurfaceElement
 import com.droiddeck.launcher.input.InputSurfaceStyle
 import com.droiddeck.launcher.input.SurfaceBounds
 import com.droiddeck.launcher.input.boundsOf
-import com.droiddeck.launcher.input.deleteBadgeCenter
 import com.droiddeck.launcher.input.moveSelection
 import com.droiddeck.launcher.input.pressSelection
 import com.droiddeck.launcher.input.resizeSelection
@@ -60,7 +59,6 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     private val density = resources.displayMetrics.density
     private val badgeRadius = 16 * density
     private val badgeReach = 22 * density
-    private val badgeOffset = 28 * density
     private val handleRadius = 12 * density
     private val handleReach = 22 * density
 
@@ -89,6 +87,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     private val ring = OutlineShape()
     private val members = ArrayList<OutlineShape>()
     private var memberCount = 0
+    private val others = ArrayList<OutlineShape>()
+    private var otherCount = 0
     private val warned = ArrayList<OutlineShape>()
     private var warnCount = 0
     private val probe = OutlineShape()
@@ -96,6 +96,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
     private var group = false
     private val handleX = FloatArray(3)
     private val handleY = FloatArray(3)
+    private val handleCorner = IntArray(3)
+    private var badgeCorner = BADGE_CORNERS[0]
     private var badgeX = 0f
     private var badgeY = 0f
 
@@ -207,37 +209,35 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
 
     private fun refreshGeometry() {
         invalidate()
-        hasSelection = false; memberCount = 0; warnCount = 0
+        hasSelection = false; memberCount = 0; otherCount = 0; warnCount = 0
         if (width == 0 || height == 0) return
         val w = width.toFloat(); val h = height.toFloat()
         val tinted = style.tint != null
-        for (e in elements) if (e.id in selection) shape(members, memberCount++).ofControl(e, tinted, w, h, density)
+        for (e in elements) (if (e.id in selection) shape(members, memberCount++) else shape(others, otherCount++)).ofControl(e, tinted, w, h, density)
         if (memberCount == 0) return
         hasSelection = true
         group = memberCount > 1
-        if (dragging) for (e in elements) {
-            if (e.id in selection) continue
-            probe.ofControl(e, tinted, w, h, density)
-            for (i in 0 until memberCount) if (probe.overlaps(members[i])) { shape(warned, warnCount++).grow(probe, RING_OUT * density); break }
+        if (dragging) for (j in 0 until otherCount) {
+            val other = others[j]
+            for (i in 0 until memberCount) if (other.overlaps(members[i])) { shape(warned, warnCount++).grow(other, RING_OUT * density); break }
         }
         if (group) {
             ring.enclose(members, memberCount, GROUP_PAD * density)
             for (i in 0 until memberCount) members[i].grow(members[i], MEMBER_OUT * density)
         } else ring.grow(members[0], RING_OUT * density)
+        if (!dragging) badgeCorner = deleteBadgeCorner(ring, w, h, badgeRadius + BADGE_RING * density, others, otherCount, probe)
+        badgeX = ring.cornerX(badgeCorner); badgeY = ring.cornerY(badgeCorner)
+        var n = 0
+        for (c in CORNERS) if (c != badgeCorner && n < 3) handleCorner[n++] = c
         for (i in 0 until 3) {
-            handleX[i] = ring.cornerX(CORNERS[i]).coerceIn(handleRadius, max(handleRadius, w - handleRadius))
-            handleY[i] = ring.cornerY(CORNERS[i]).coerceIn(handleRadius, max(handleRadius, h - handleRadius))
+            handleX[i] = ring.cornerX(handleCorner[i]).coerceIn(handleRadius, max(handleRadius, w - handleRadius))
+            handleY[i] = ring.cornerY(handleCorner[i]).coerceIn(handleRadius, max(handleRadius, h - handleRadius))
         }
-        badgeCenter()?.let { badgeX = it.first; badgeY = it.second }
     }
 
-    internal fun badgeCenter(): Pair<Float, Float>? {
-        val b = elements.boundsOf(selection) ?: return null
-        if (width == 0 || height == 0) return null
-        return deleteBadgeCenter(SurfaceBounds(width * b.left, height * b.top, width * b.right, height * b.bottom), width.toFloat(), height.toFloat(), badgeOffset, badgeReach)
-    }
+    internal fun badgeCenter(): Pair<Float, Float>? = if (hasSelection) badgeX to badgeY else null
 
-    /** Index of the resize handle under x,y: 0 top-left, 1 bottom-left, 2 bottom-right; -1 for none. */
+    /** Index of the resize handle under x,y, counting the corners top-left, bottom-left, bottom-right, top-right minus the badge's; -1 for none. */
     internal fun handleAt(x: Float, y: Float) = if (!hasSelection) -1 else pickHandle(x, y, handleX, handleY, handleReach, ring.centerX, ring.centerY)
 
     internal fun hitsBadge(x: Float, y: Float) = hasSelection && hypot(x - badgeX, y - badgeY) <= badgeReach
@@ -306,7 +306,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         val press = badgePress.value
         val s = appear * (1f - .1f * press)
         fill.color = withAlpha(ERROR, .2f * press); canvas.drawCircle(badgeX, badgeY, (badgeRadius + 7 * density) * s, fill)
-        fill.color = BADGE_RING; canvas.drawCircle(badgeX, badgeY, (badgeRadius + 2 * density) * s, fill)
+        fill.color = BADGE_RING_COLOR; canvas.drawCircle(badgeX, badgeY, (badgeRadius + BADGE_RING * density) * s, fill)
         fill.color = lerpColor(SURFACE_2, ERROR, press); canvas.drawCircle(badgeX, badgeY, badgeRadius * s, fill)
         stroke.strokeWidth = 1.5f * density * s; stroke.color = lerpColor(ERROR_LINE, ERROR, press)
         canvas.drawCircle(badgeX, badgeY, (badgeRadius - .75f * density) * s, stroke)
@@ -402,7 +402,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
                 downX = event.x; downY = event.y; dragging = false; corner = 0; readout = null
                 before = selection
                 activeHandle = handleAt(downX, downY)
-                if (activeHandle >= 0) corner = CORNERS[activeHandle]
+                if (activeHandle >= 0) corner = handleCorner[activeHandle]
                 hit = if (corner != 0) null else elements.asReversed().firstOrNull {
                     downX / width in it.x..(it.x + it.width) && downY / height in it.y..(it.y + it.height)
                 }?.id
@@ -469,7 +469,8 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
 
     companion object {
         private val LINEAR = android.view.animation.LinearInterpolator()
-        private val CORNERS = intArrayOf(1 or 4, 1 or 8, 2 or 8)
+        private val CORNERS = intArrayOf(1 or 4, 1 or 8, 2 or 8, 2 or 4)
+        private const val BADGE_RING = 2f
         private const val RING_OUT = 3f
         private const val MEMBER_OUT = 2f
         private const val GROUP_PAD = 10f
@@ -496,7 +497,7 @@ internal class InputSurfaceEditorView(context: Context) : FrameLayout(context) {
         private val ERROR_LINE = Color.argb(153, 0xFF, 0x6B, 0x6B)
         private val ERROR_INK = Color.rgb(0x1F, 0x06, 0x06)
         private val SURFACE_2 = Color.rgb(0x1A, 0x1D, 0x22)
-        private val BADGE_RING = Color.argb(217, 0x0A, 0x0B, 0x0D)
+        private val BADGE_RING_COLOR = Color.argb(217, 0x0A, 0x0B, 0x0D)
         private val SHADOW = Color.argb(77, 0, 0, 0)
     }
 }

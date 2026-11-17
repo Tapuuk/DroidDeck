@@ -98,6 +98,26 @@ internal class OutlineShape {
     }
 }
 
+/** Corners of a selection outline as [OutlineShape.cornerX] bits, in the order the delete badge tries them. */
+internal val BADGE_CORNERS = intArrayOf(2 or 4, 1 or 4, 2 or 8, 1 or 8)
+
+/**
+ * The corner of [ring] that carries the delete badge, a disc of [radius] centred on the outline: the first of [BADGE_CORNERS] where it
+ * stays on a [width] x [height] screen and clear of the first [count] of [others], else the first where it stays on screen.
+ */
+internal fun deleteBadgeCorner(ring: OutlineShape, width: Float, height: Float, radius: Float, others: List<OutlineShape>, count: Int = others.size,
+    disc: OutlineShape = OutlineShape()): Int {
+    var fallback = 0
+    for (corner in BADGE_CORNERS) {
+        val x = ring.cornerX(corner); val y = ring.cornerY(corner)
+        if (x < radius || y < radius || x > width - radius || y > height - radius) continue
+        disc.set(x - radius, y - radius, x + radius, y + radius, radius)
+        if ((0 until count).none { disc.overlaps(others[it]) }) return corner
+        if (fallback == 0) fallback = corner
+    }
+    return if (fallback != 0) fallback else BADGE_CORNERS[0]
+}
+
 /**
  * Index of the handle a touch at [x],[y] grabs: the nearest of [xs],[ys] within [reach], unless the touch is nearer the selection's
  * centre ([cx],[cy]) than that handle, so a small control's middle still moves it. -1 when none.

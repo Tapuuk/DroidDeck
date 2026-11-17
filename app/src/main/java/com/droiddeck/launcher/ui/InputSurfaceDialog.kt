@@ -406,6 +406,8 @@ private fun SurfaceCanvas(draft: SurfaceDraft, transparent: Boolean = false, onD
 }
 
 private val PillWidth = 240.dp
+/** How far the selection's handles and delete badge reach past its controls. */
+private val SelectionReach = 24.dp
 
 @Composable
 private fun FloatingSurfaceTools(draft: SurfaceDraft, toasts: EditorToasts, onSave: () -> Unit, onLeave: () -> Unit) {
@@ -418,9 +420,10 @@ private fun FloatingSurfaceTools(draft: SurfaceDraft, toasts: EditorToasts, onSa
         val handle = with(density) { EditorHandleSize.toPx() }
         val barHeight = with(density) { EditorBarHeight.toPx() }
         var dragging by remember { mutableStateOf(false) }
-        val badge = with(density) { 50.dp.toPx() }
+        val reach = with(density) { SelectionReach.toPx() }
         val selected = draft.visible.boundsOf(draft.selection)?.let {
-            SurfaceBounds(it.left, (it.top - badge / screenHeight).coerceAtLeast(0f), (it.right + badge / screenWidth).coerceAtMost(1f), it.bottom)
+            SurfaceBounds((it.left - reach / screenWidth).coerceAtLeast(0f), (it.top - reach / screenHeight).coerceAtLeast(0f),
+                (it.right + reach / screenWidth).coerceAtMost(1f), (it.bottom + reach / screenHeight).coerceAtMost(1f))
         }
         val bounds = draft.visible.map { SurfaceBounds(it.x, it.y, it.x + it.width, it.y + it.height) }
         val (hx, hy) = placeSurfaceTools(screenWidth, screenHeight, handle, handle, margin, bounds, if (dragging) null else selected, draft.toolsAt)

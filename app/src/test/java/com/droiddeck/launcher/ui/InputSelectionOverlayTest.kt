@@ -61,10 +61,45 @@ class InputSelectionOverlayTest {
         assertEquals(-1, view.handleAt(450f, 200f))
 
         val (bx, by) = view.badgeCenter()!!
+        assertEquals(450f + diagonal, bx, .01f)
+        assertEquals(200f - diagonal, by, .01f)
         assertTrue(view.hitsBadge(bx + 21 * d, by))
         assertTrue(view.hitsBadge(bx - 15 * d, by + 15 * d))
         assertFalse(view.hitsBadge(bx, by - 23 * d))
         assertEquals(-1, view.handleAt(bx, by))
+    }
+
+    @Test fun theBadgeSitsOnTheOutlineCornerOfARoundedRectangle() {
+        val pill = InputSurfaceElement(InputControl.LB, .2f, .4f, .2f, .2f, "pill", buttonShape = InputButtonShape.ROUNDED)
+        val view = editor(pill)
+        view.selection = listOf("pill")
+        val d = view.density
+        val corner = 23 * d
+        val (bx, by) = view.badgeCenter()!!
+        assertEquals(400f + 3 * d - corner * (1 - .70710677f), bx, .01f)
+        assertEquals(200f - 3 * d + corner * (1 - .70710677f), by, .01f)
+    }
+
+    @Test fun theBadgeTakesTheNextCornerWhenAControlOrTheEdgeIsInTheWay() {
+        val d = 2f
+        val diagonal = (50f + 3 * d) * .70710677f
+        val neighbour = InputSurfaceElement(InputControl.B, .48f, .2f, .06f, .12f, "two", buttonShape = InputButtonShape.CIRCLE)
+        val view = editor(a, neighbour)
+        assertEquals(d, view.density, 0f)
+        view.selection = listOf("one")
+        assertNear(450f - diagonal to 200f - diagonal, view.badgeCenter()!!)
+        assertEquals(-1, view.handleAt(450f - diagonal, 200f - diagonal))
+        assertEquals(2, view.handleAt(450f + diagonal, 200f - diagonal))
+
+        val edge = InputSurfaceElement(InputControl.A, .9f, 0f, .1f, .2f, "edge", buttonShape = InputButtonShape.CIRCLE)
+        val cornered = editor(edge)
+        cornered.selection = listOf("edge")
+        assertNear(950f - diagonal to 50f + diagonal, cornered.badgeCenter()!!)
+    }
+
+    private fun assertNear(expected: Pair<Float, Float>, actual: Pair<Float, Float>) {
+        assertEquals(expected.first, actual.first, .01f)
+        assertEquals(expected.second, actual.second, .01f)
     }
 
     @Test fun draggingAHandleResizesFromTheOppositeCorner() {

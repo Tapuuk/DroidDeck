@@ -185,9 +185,8 @@ class InputSettingsTest {
         compose.onNodeWithTag("input-editor-redo").assertExists()
         compose.onNodeWithTag("input-remove-selection").assertDoesNotExist()
         compose.onNodeWithTag("input-editor-tools").performClick()
-        val density = context.resources.displayMetrics.density
-        val badge = deleteBadgeCenter(SurfaceBounds(target.left, target.top, target.right, target.bottom), canvas.width, canvas.height, 28 * density, 22 * density)
-        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(androidx.compose.ui.geometry.Offset(badge.first - 14 * density, badge.second + 14 * density)) }
+        val badge = editorBadge(context, layout, listOf(start.id), canvas)
+        compose.onNodeWithTag("input-layout-canvas").performTouchInput { click(androidx.compose.ui.geometry.Offset(badge.first, badge.second)) }
         compose.onNodeWithTag("input-selection-pill").assertDoesNotExist()
         compose.onNodeWithTag("input-editor-tools").performClick()
         compose.onNodeWithTag("input-editor-save").performClick()

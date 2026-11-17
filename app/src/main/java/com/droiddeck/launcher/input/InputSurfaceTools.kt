@@ -45,15 +45,6 @@ internal fun freeSurfaceSpot(elements: List<SurfaceBounds>, width: Float, height
         { (x, y) -> hypot(x - maxX / 2, y - maxY / 2) }))
 }
 
-/** Centre of the delete badge: [offset] pixels diagonally out from the top-right corner of [selection] (pixels), moved inside on a clipped side. */
-internal fun deleteBadgeCenter(selection: SurfaceBounds, width: Float, height: Float, offset: Float, reach: Float): Pair<Float, Float> {
-    val x = if (selection.right + offset + reach <= width) selection.right + offset else selection.right - offset
-    val y = if (selection.top - offset - reach >= 0f) selection.top - offset else selection.top + offset
-    return x to y
-}
-
-internal fun hitsDeleteBadge(x: Float, y: Float, center: Pair<Float, Float>, reach: Float) = hypot(x - center.first, y - center.second) <= reach
-
 /**
  * Top-left, in pixels, for the size and opacity pill: beside [selection] on the side with more room, else below or above, avoiding
  * [selection] and [avoid] (both pixels). Falls back to the spot covering the selection least.
