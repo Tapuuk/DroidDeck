@@ -95,6 +95,7 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
     var layoutScale by mutableFloatStateOf(layout.scale)
     private var scaleBase by mutableStateOf<Triple<List<InputSurfaceElement>, List<InputSurfaceElement>, Float>?>(null)
     private var scaleValue by mutableIntStateOf(100)
+    private var scaleMark: SurfaceSnapshot? = null
     private val rescales get() = gamepad != null && elements.any { it.id in gamepad.ids }
     val scale get() = when {
         scaleBase?.second == elements -> scaleValue
@@ -126,7 +127,8 @@ private class SurfaceDraft(val layout: SavedInputLayout, val preset: SavedInputB
         checkpoint(); elements = elements.filterNot { it.id == id }; actions = actions - id; clicks = clicks - id; removed = removed - id
     }
     fun scaleAll(percent: Int) {
-        val base = scaleBase?.takeIf { it.second == elements } ?: Triple(elements, elements, if (rescales) layoutScale else 0f).also { checkpoint() }
+        val base = scaleBase?.takeIf { it.second == elements && history.lastOrNull() === scaleMark }
+            ?: Triple(elements, elements, if (rescales) layoutScale else 0f).also { checkpoint(); scaleMark = history.last() }
         val factor = percent / 100f
         elements = if (base.third > 0f && gamepad != null) {
             layoutScale = factor

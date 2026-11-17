@@ -447,7 +447,7 @@ internal fun SessionDrawer(open: Boolean, requestedPage: SessionDrawerPage, cont
         if (open && !controllerActive) focusManager.clearFocus(force = true)
     }
     var focusedPage by remember { mutableStateOf(page) }
-    LaunchedEffect(open, page, glassesTab, controllerActive, host.open, appToChooseDisplay, confirmStop) {
+    LaunchedEffect(open, page, glassesTab, controllerActive, host.open, appToChooseDisplay, confirmStop, a.gameProfile) {
         if (!open) {
             host.open = null
             confirmStop = false
@@ -459,6 +459,7 @@ internal fun SessionDrawer(open: Boolean, requestedPage: SessionDrawerPage, cont
             val first = when {
                 page == SessionDrawerPage.GLASSES -> "glasses-tab-$glassesTab"
                 page == SessionDrawerPage.SESSION && a.isHomeApp -> "apps"
+                page == SessionDrawerPage.CONTROLLER && a.gameProfile != null -> "input-settings"
                 page == SessionDrawerPage.SECOND_SCREEN -> "second-screen:" +
                     (if (a.secondScreenMode == SecondScreenMode.NONE && !a.secondScreenNone) SecondScreenMode.KEYBOARD_TRACKPAD else a.secondScreenMode).id
                 else -> page.firstControl

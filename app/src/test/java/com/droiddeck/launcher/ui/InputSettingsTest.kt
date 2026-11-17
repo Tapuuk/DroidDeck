@@ -503,6 +503,29 @@ class InputSettingsTest {
         assertEquals("KEY_SPACE", org.json.JSONObject(target.readText()).getJSONArray("elements").getJSONObject(0).getJSONArray("bindings").getString(0))
     }
 
+    @Test fun undoAfterAddingBackOnlyReversesTheNextScaleChange() {
+        val library = InputLibraries.read(context)
+        val layout = library.layout("game", InputRole.PRIMARY)!!
+        InputLibraries.update(context) { it.withLayout(layout.copy(style = layout.style.copy(removed = setOf("builtin:keyboard", "legacy:guide")))) }
+        compose.setContent { DroidDeckTheme { InputSurfaceDialog("game", {}, {}, role = InputRole.PRIMARY,
+            layoutId = layout.id, bindingsId = library.profile("game").binding(InputRole.PRIMARY)) } }
+        compose.onNodeWithTag("input-editor-tools").performClick()
+        val slider = compose.onNodeWithTag("input-editor-scale").performScrollTo()
+        slider.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(110f) }
+        compose.onNodeWithTag("input-editor-removed").performScrollTo().performClick()
+        compose.onNode(hasText(context.getString(R.string.input_add_back)) and hasAnyAncestor(hasTestTag("input-removed-builtin:keyboard"))).performClick()
+        compose.onNodeWithText(context.getString(R.string.common_close)).performClick()
+        compose.onNodeWithTag("input-editor-scale").performScrollTo()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.SetProgress) { it(120f) }
+        compose.onNodeWithText(context.getString(R.string.input_editor_undo)).performScrollTo().performClick()
+        compose.onNodeWithText(context.getString(R.string.gesture_save_changes)).performScrollTo().performClick()
+        compose.runOnIdle {
+            val saved = InputLibraries.read(context).layouts.first { it.id == layout.id }
+            assertEquals(1.1f, saved.scale)
+            assertEquals(setOf("legacy:guide"), saved.style.removed)
+        }
+    }
+
     @Test fun buttonSizeRegeneratesTheGamepadAndUndoesAsOneStep() {
         val library = InputLibraries.read(context)
         val layout = library.layout("game", InputRole.PRIMARY)!!
